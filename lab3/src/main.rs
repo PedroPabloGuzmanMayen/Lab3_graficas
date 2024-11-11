@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec3, Mat4, Mat3};
+use nalgebra_glm::{Vec3, Mat4, Mat3, look_at};
 use minifb::{Key, Window, WindowOptions};
 use std::f32::consts::PI;
 
@@ -12,6 +12,7 @@ mod bmp;
 mod uniforms;
 mod shaders;
 mod obj;
+mod camera;
 use framebuffer::FrameBuffer;
 use vertex::Vertex;
 use shaders::vertex_shader;
@@ -19,6 +20,7 @@ use uniforms::Uniforms;
 use triangle::triangle;
 use color::Color;
 use obj::Obj;
+use camera::Camera;
 
 
 fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
@@ -66,6 +68,13 @@ fn main() {
   let framebuffer_width = 800;
   let framebuffer_height = 600;
 
+  let mut camera = Camera::new(
+    Vec3::new(0.0, 0.0, 5.0),
+    Vec3::new(0.0, 0.0, 0.0),
+    Vec3::new(0.0, 1.0, 0.0),
+    false
+  );
+
   let mut framebuffer = FrameBuffer::new(framebuffer_width, framebuffer_height);
   let mut window = Window::new(
     "Rust Graphics - Renderer Example",
@@ -91,7 +100,7 @@ fn main() {
 
   let mut translation = Vec3::new(400.0, 300.0, 0.0);
   let mut rotation = Vec3::new(0.0, 0.0, 0.0);
-  let mut scale = 1.0f32;
+  let mut scale = 50.0f32;
   let obj = Obj::load("assets/ship.obj").expect("Failed t load obj");
   let array = obj.get_vertex_array();
 
@@ -105,7 +114,7 @@ fn main() {
     handle_input(&window, &mut translation, &mut rotation, &mut scale);
 
     framebuffer.clear();
-    let uniform = Uniforms::new(translation, scale, rotation);
+    let uniform = Uniforms::new(translation, scale, rotation, &camera.eye, &camera.center, &camera.up);
 
     render(&mut framebuffer, &uniform, &array);
 
@@ -135,14 +144,14 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
     *scale -= 0.1;
   }
   if window.is_key_down(Key::Q) {
-    rotation.z -= PI / 20.0;
+    rotation.z -= PI / 10.0;
   }
   if window.is_key_down(Key::W){
-    rotation.x += 11.0;
+    rotation.x += PI /10.0;
 
   }
 
   if window.is_key_down(Key::D){
-    rotation.y += 7.0;
+    rotation.y += PI /10.0;
   }
 }

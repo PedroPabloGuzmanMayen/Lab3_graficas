@@ -1,12 +1,14 @@
-use nalgebra_glm::{Vec3, Mat4, Mat3};
+use nalgebra_glm::{Vec3, Mat4, Mat3, look_at};
 pub struct Uniforms {
-    pub model_matrix:Mat4
+    pub model_matrix:Mat4,
+    pub view_matrix:Mat4
 }
 
 impl Uniforms {
-    pub fn new(translation: Vec3, scale:f32, rotation: Vec3) -> Uniforms{
-        let matrix = create_model_matrix(translation, scale, rotation);
-        Uniforms {model_matrix: matrix}
+    pub fn new(translation: Vec3, scale:f32, rotation: Vec3, eye: &Vec3, center: &Vec3, up: &Vec3) -> Uniforms{
+        let model_matrix = create_model_matrix(translation, scale, rotation);
+        let view_matrix = create_view_matrix(eye, center, up);
+        Uniforms {model_matrix: model_matrix, view_matrix: view_matrix}
     }
 
     
@@ -48,4 +50,8 @@ pub fn create_model_matrix(translation: Vec3, scale:f32, rotation: Vec3) -> Mat4
     );
 
     transform_matrix*rotation_matrix
+}
+
+pub fn create_view_matrix(eye: &Vec3, center: &Vec3, up: &Vec3) -> Mat4{
+    look_at(eye, center, up)
 }
