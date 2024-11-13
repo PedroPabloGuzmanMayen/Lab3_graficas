@@ -21,11 +21,11 @@ impl Obj {
         let mesh = &models[0].mesh;
 
         let vertices: Vec<Vec3> = mesh.positions.chunks(3)
-            .map(|v| Vec3::new(v[0], -v[1], -v[2]))
+            .map(|v| Vec3::new(v[0], v[1], v[2]))
             .collect();
 
         let normals: Vec<Vec3> = mesh.normals.chunks(3)
-            .map(|n| Vec3::new(n[0], -n[1], -n[2]))
+            .map(|n| Vec3::new(n[0], n[1],n[2]))
             .collect();
 
         let texcoords: Vec<Vec2> = mesh.texcoords.chunks(2)
@@ -44,23 +44,33 @@ impl Obj {
     
     pub fn get_vertex_array(&self) -> Vec<Vertex> {
         let mut vertexes = Vec::with_capacity(self.indices.len());
-
+    
         for &i in &self.indices {
-            let position = self.vertices[i as usize];
-            let normal = if !self.normals.is_empty() {
+            // Ensure the index is within bounds for vertices
+            let position = if (i as usize) < self.vertices.len() {
+                self.vertices[i as usize]
+            } else {
+                eprintln!("Warning: Vertex index {} out of bounds", i);
+                continue;
+            };
+    
+            // Ensure the index is within bounds for normals
+            let normal = if !self.normals.is_empty() && (i as usize) < self.normals.len() {
                 self.normals[i as usize]
             } else {
-                Vec3::new(0.0, 0.0, 0.0)
+                Vec3::new(0.0, 0.0, 0.0) // Default normal
             };
-            let tex_coord = if !self.texcoords.is_empty() {
+    
+            // Ensure the index is within bounds for texcoords
+            let tex_coord = if !self.texcoords.is_empty() && (i as usize) < self.texcoords.len() {
                 self.texcoords[i as usize]
             } else {
-                Vec2::new(0.0, 0.0)
+                Vec2::new(0.0, 0.0) // Default texture coordinate
             };
-
+    
             vertexes.push(Vertex::new(position, normal, tex_coord));
         }
-
+    
         vertexes
     }
 }

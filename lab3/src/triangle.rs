@@ -28,7 +28,7 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
     let (a,b,c) = (v1.transformed_position, v2.transformed_position, v3.transformed_position);
     let (min_x, min_y, max_x, max_y) = calculate_bounding_box(&a, &b, &c);
     let area = edge_function(&a, &b, &c);
-    let light_dir = Vec3::new(0.0,0.0, 1.0).normalize();
+    let light_dir = Vec3::new(0.0,0.0, -1.0).normalize();
     let color_a = Color::new(255,0,0);
     let color_b = Color::new(0,255,0);
     let color_c = Color::new(0,0,255);
