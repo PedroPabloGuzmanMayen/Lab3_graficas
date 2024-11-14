@@ -15,7 +15,7 @@ pub fn line(a: &Vertex, b:&Vertex) -> Vec<Fragment> {
     let mut err = if dx > dy { dx / 2 } else { -dy / 2 };
 
     loop {
-        fragments.push(Fragment::new(x as f32, y as f32, Color::new(255,255,255), 0.0));
+        fragments.push(Fragment::new(x as f32, y as f32, 0.0, 0.0));
         if x == b.position.x as isize && y == b.position.y as isize { break; }
         let e2 = err;
         if e2 > -dx {

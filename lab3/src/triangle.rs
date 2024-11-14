@@ -45,12 +45,14 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
                 let normal = v1.normal * u + v2.normal * v + v3.normal * w;
                 let normal = normal.normalize();
                 let intensity = dot(&normal, &light_dir);
+                /* 
                 if intensity < 0.0{
                     continue;
                 }
+                */
                 let lit_color = base_color * intensity;
                 
-                fragments.push(Fragment::new(point.x, point.y, lit_color, depth));
+                fragments.push(Fragment::new(point.x, point.y, intensity, depth));
             }
         }
     }

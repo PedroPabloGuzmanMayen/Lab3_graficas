@@ -1,6 +1,8 @@
 use nalgebra_glm::{Vec3, Vec4};
 use crate::vertex::Vertex;
 use crate::uniforms::Uniforms;
+use crate::fragment::Fragment;
+use crate::color::Color;
 
 pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
     let position = Vec4::new(
@@ -37,4 +39,9 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
         transformed_position,
         transformed_normal: vertex.normal
     }
+}
+
+
+pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
+     Color::new(100, 100, 100) * fragment.intensity
 }

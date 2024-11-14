@@ -15,7 +15,7 @@ mod obj;
 mod camera;
 use framebuffer::FrameBuffer;
 use vertex::Vertex;
-use shaders::vertex_shader;
+use shaders::{vertex_shader, fragment_shader};
 use uniforms::{Uniforms, create_projection_matrix, create_viewport_matrix};
 use triangle::triangle;
 use color::Color;
@@ -63,7 +63,8 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
       // Bounds check
       if x < framebuffer.width && y < framebuffer.height {
-          framebuffer.set_current_color(fragment.color);
+        let shaded_color = fragment_shader(&fragment, uniforms);
+          framebuffer.set_current_color(shaded_color);
           framebuffer.point(x, y, fragment.depth);
           drawn_fragments += 1;
       }
@@ -73,10 +74,10 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
 
 fn main() {
-    let window_width = 800;
-    let window_height = 600;
-    let framebuffer_width = 800;
-    let framebuffer_height = 600;
+    let window_width = 1000;
+    let window_height = 1000;
+    let framebuffer_width = 1000;
+    let framebuffer_height = 1000;
 
     println!("--- Initializing Camera ---");
     let mut camera = Camera::new(
@@ -112,7 +113,7 @@ fn main() {
 
     let mut translation = Vec3::new(0.0, 0.0, 0.0);
     let mut rotation = Vec3::new(0.0, 0.0, 0.0);
-    let mut scale = 1.0f32;
+    let mut scale = 0.1f32;
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -145,9 +146,9 @@ fn main() {
 }
 
 fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32, camera: &mut Camera) {
-    let movement_speed = 0.1;
+    let movement_speed = 0.5;
     let rotation_speed = PI / 50.0;
-    let zoom_speed = 0.6;
+    let zoom_speed = 0.3;
     let mut movement = Vec3::new(0.0, 0.0, 0.0);
 
     if window.is_key_down(Key::Left) {
@@ -176,7 +177,10 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
     }
 
     if window.is_key_down(Key::A){
+        println!("Pressed A");
+        
         movement.x -= movement_speed;
+        println!("Movement x: {}", movement.x);
     }
     if window.is_key_down(Key::D){
         movement.x += movement_speed;
@@ -188,7 +192,8 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
         movement.y -= movement_speed;
     }
 
-    if movement.magnitude() > 0.0 {
+    if movement.magnitude() != 0.0 {
         camera.move_center(movement);
+        println!("Camera center {}", camera.center);
     }
 }
