@@ -51,8 +51,9 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
                 }
                 */
                 let lit_color = base_color * intensity;
+                let vertex_position = v1.position*u + v2.position*v + v3.position*w;
                 
-                fragments.push(Fragment::new(point.x, point.y, intensity, depth));
+                fragments.push(Fragment::new(point.x, point.y, intensity, depth, vertex_position));
             }
         }
     }

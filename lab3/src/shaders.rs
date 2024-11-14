@@ -43,5 +43,14 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
 
 
 pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
-     Color::new(100, 100, 100) * fragment.intensity
+    let stripe_width = 0.5; // Adjust the width of the stripes as needed
+    let x = fragment.vertex_position.x;
+    let mut color = Color::new(255,255,255);
+
+    if (x / stripe_width) as i32 % 2 == 0 {
+        color = Color::new(255, 0, 0); // Red stripe
+    } else {
+        color = Color::new(0, 0, 255); // Blue stripe
+    }
+    color * fragment.intensity
 }
