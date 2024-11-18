@@ -1,6 +1,7 @@
 use nalgebra_glm::{Vec3, Mat4, Mat3, look_at};
 use minifb::{Key, Window, WindowOptions};
 use std::f32::consts::PI;
+use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 
 mod framebuffer;
 mod triangle;
@@ -16,13 +17,19 @@ mod camera;
 use framebuffer::FrameBuffer;
 use vertex::Vertex;
 use shaders::{vertex_shader, fragment_shader};
-use uniforms::{Uniforms, create_projection_matrix, create_viewport_matrix};
+use uniforms::{Uniforms, create_projection_matrix, create_viewport_matrix, create_model_matrix, create_view_matrix};
 use triangle::triangle;
 use color::Color;
 use obj::Obj;
 use camera::Camera;
 
-fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
+fn create_noise() -> FastNoiseLite{
+    let mut noise = FastNoiseLite::with_seed(1337);
+
+    noise
+}
+
+fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Vertex], option: usize) {
 
 
   // Transform vertices
@@ -63,7 +70,7 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
       // Bounds check
       if x < framebuffer.width && y < framebuffer.height {
-        let shaded_color = fragment_shader(&fragment, uniforms);
+        let shaded_color = fragment_shader(&fragment, uniforms, option as f32);
           framebuffer.set_current_color(shaded_color);
           framebuffer.point(x, y, fragment.depth);
           drawn_fragments += 1;
@@ -79,19 +86,29 @@ fn main() {
     let framebuffer_width = 1000;
     let framebuffer_height = 1000;
 
-    println!("--- Initializing Camera ---");
+    let mut time:f32 = 0.0;
+
+    let noise = create_noise();
+   
+
     let mut camera = Camera::new(
         Vec3::new(5.0, 5.0, 1.0),
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         false,
     );
-
-    println!("--- Creating Projection Matrix ---");
     let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
     let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
 
-    println!("--- Initializing Framebuffer ---");
+    let mut uniform = Uniforms::new(
+        Mat4::identity(),
+        Mat4::identity(),
+        projection_matrix,
+        viewport_matrix,
+        time, 
+        noise
+    );
+
     let mut framebuffer = FrameBuffer::new(framebuffer_width, framebuffer_height);
     let mut window = Window::new(
         "Rust Graphics - Renderer Example",
@@ -123,20 +140,14 @@ fn main() {
 
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
         framebuffer.clear();
-
-        let uniform = Uniforms::new(
-            translation,
-            scale,
-            rotation,
-            &camera.eye,
-            &camera.center,
-            &camera.up,
-            projection_matrix,
-            viewport_matrix,
-        );
+        time += 0.32;
+        //Iniciar aqui
+        uniform.model_matrix = create_model_matrix(translation, scale, rotation);
+        uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
 
 
-        render(&mut framebuffer, &uniform, &array);
+
+        render(&mut framebuffer, &uniform, &array, 1);
 
         window
             .update_with_buffer(&framebuffer.cast_buffer(), framebuffer_width, framebuffer_height)

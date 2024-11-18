@@ -24,6 +24,30 @@ impl Color {
         Color { r, g, b }
     }
 
+    pub fn lerp(&self, other: &Color, t:f32) -> Self{
+        let t = t.clamp(0.0, 1.0);
+        Color{
+            r: (self.r as f32 + (other.r as f32 - self.r as f32) * t).round() as u8,
+            g: (self.g as f32 + (other.g as f32 - self.g as f32) * t).round() as u8,
+            b: (self.b as f32 + (other.b as f32 - self.b as f32) * t).round() as u8,
+        }
+    }
+
+    pub fn is_black(&self) -> bool {
+        self.r == 0 && self.g == 0 && self.b == 0
+    }
+
+    pub fn blend_normal(&self, blend: &Color) -> Color {
+        if blend.is_black() {*self} else {*blend}
+    }
+    pub fn blend_multiply(&self, blend: &Color) -> Color {
+        Color::new(
+            ((self.r as f32 * blend.r as f32) / 255.0) as u8,
+            ((self.g as f32 * blend.g as f32) / 255.0) as u8,
+            ((self.b as f32 * blend.b as f32) / 255.0) as u8
+        )
+    }
+
     pub fn to_hex(&self) -> u32 {
         ((self.r as u32) << 16) | ((self.g as u32) << 8) | (self.b as u32)
     }

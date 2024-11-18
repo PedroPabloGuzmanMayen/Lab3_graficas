@@ -1,17 +1,18 @@
 use nalgebra_glm::{Vec3, Mat4, Mat3, look_at, perspective};
 use std::f32::consts::PI;
+use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
 pub struct Uniforms {
     pub model_matrix:Mat4,
     pub view_matrix:Mat4,
     pub projection_matrix: Mat4,
-    pub viewport_matrix: Mat4
+    pub viewport_matrix: Mat4,
+    pub time: f32,
+    pub noise: FastNoiseLite
 }
 
 impl Uniforms {
-    pub fn new(translation: Vec3, scale:f32, rotation: Vec3, eye: &Vec3, center: &Vec3, up: &Vec3, perspective_matrix: Mat4, viewport_matrix: Mat4 ) -> Uniforms{
-        let model_matrix = create_model_matrix(translation, scale, rotation);
-        let view_matrix = create_view_matrix(eye, center, up);
-        Uniforms {model_matrix: model_matrix, view_matrix: view_matrix, projection_matrix: perspective_matrix, viewport_matrix }
+    pub fn new(model_matrix: Mat4, view_matrix: Mat4, perspective_matrix: Mat4, viewport_matrix: Mat4, time: f32, noise: FastNoiseLite ) -> Uniforms{
+        Uniforms {model_matrix: model_matrix, view_matrix: view_matrix, projection_matrix: perspective_matrix, viewport_matrix, time, noise }
     }
 
     

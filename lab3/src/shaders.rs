@@ -42,15 +42,23 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
 }
 
 
-pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
+pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: f32) -> Color {
     let stripe_width = 0.5; // Adjust the width of the stripes as needed
     let x = fragment.vertex_position.x;
-    let mut color = Color::new(255,255,255);
+    let red = Color::new(255, 0, 0); // Red stripe
+    let blue = Color::new(0, 0, 255); // Blue stripe
 
-    if (x / stripe_width) as i32 % 2 == 0 {
-        color = Color::new(255, 0, 0); // Red stripe
-    } else {
-        color = Color::new(0, 0, 255); // Blue stripe
-    }
+    let t = ((x / stripe_width) as i32 % 2) as f32;
+    let color = Color::lerp(&red, &blue, t);
+
     color * fragment.intensity
+}
+
+
+pub fn rocks_sufrace_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    Color::new(255, 255, 255)
+}
+
+pub fn sun_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    Color::new(255, 255, 255)
 }
