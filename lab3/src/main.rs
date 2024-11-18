@@ -121,10 +121,11 @@ fn main() {
     let window_height = 1000;
     let framebuffer_width = 1000;
     let framebuffer_height = 1000;
+    let mut option = 0;
 
     let mut time:f32 = 0.0;
 
-    let noise = create_noise(1);
+    let mut noise = create_noise(1);
    
 
     let mut camera = Camera::new(
@@ -173,6 +174,16 @@ fn main() {
             println!("Escape key pressed, exiting...");
             break;
         }
+        if window.is_key_down(Key::Key1) {
+            noise = create_noise(1);
+            uniform.noise = noise;
+            option = 1;
+        }
+        if window.is_key_down(Key::Key2){
+            noise = create_noise(2);
+            uniform.noise = noise;
+            option = 2;
+        }
 
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
         framebuffer.clear();
@@ -184,7 +195,7 @@ fn main() {
 
 
 
-        render(&mut framebuffer, &uniform, &array, 1);
+        render(&mut framebuffer, &uniform, &array, option);
 
         window
             .update_with_buffer(&framebuffer.cast_buffer(), framebuffer_width, framebuffer_height)
