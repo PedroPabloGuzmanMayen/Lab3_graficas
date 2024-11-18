@@ -1,7 +1,7 @@
 use nalgebra_glm::{Vec3, Mat4, Mat3, look_at};
 use minifb::{Key, Window, WindowOptions};
-use std::f32::consts::PI;
-use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
+use std::{f32::consts::PI};
+use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType, CellularDistanceFunction, CellularReturnType};
 
 mod framebuffer;
 mod triangle;
@@ -23,20 +23,34 @@ use color::Color;
 use obj::Obj;
 use camera::Camera;
 
+//Angle: el ángulo en el que se bica el planeta con respecto al centro del mundo
+//Radius: El radio de la trayectoria de la órbita del planeta
+pub fn traslaton_movement(angle: f32, radius: f32) -> (f32, f32){
+    (radius * angle.cos(), radius * angle.sin())
+}
+
+
 fn create_noise(option: usize) -> FastNoiseLite{
     let mut noise = FastNoiseLite::new();
     //Estrella del sistema
     if (option == 1){
         noise.set_noise_type(Some(NoiseType::Perlin)); 
-        noise.set_fractal_type(Some(FractalType::Ridged)); // Adds detail and contrast
-        noise.set_frequency(Some(0.02)); // Low frequency for smooth, large features
-        noise.set_fractal_octaves(Some(5)); // More octaves for added complexity
-        noise.set_fractal_gain(Some(0.5)); // Controls the influence of each octave
-        noise.set_fractal_lacunarity(Some(2.0)); // Controls the scaling of frequency for each octave
+        noise.set_fractal_type(Some(FractalType::Ridged)); 
+        noise.set_frequency(Some(0.02)); 
+        noise.set_fractal_octaves(Some(5)); 
+        noise.set_fractal_gain(Some(0.5)); 
+        noise.set_fractal_lacunarity(Some(2.0)); 
         noise.set_seed(Some(42));
     }
     //Planeta rocoso
     if (option == 2){
+        noise.set_noise_type(Some(NoiseType::Perlin)); // Try Simplex for a different effect
+        noise.set_fractal_type(Some(FractalType::Ridged)); // Adds sharp, jagged features
+        noise.set_frequency(Some(0.1)); // Higher frequency for more details
+        noise.set_fractal_octaves(Some(5)); // More octaves for added complexity
+        noise.set_fractal_gain(Some(0.6)); // Controls the influence of each octave
+        noise.set_fractal_lacunarity(Some(2.5)); // Higher lacunarity for sharper features
+        noise.set_seed(Some(42)); 
 
     }
     //Planeta gaseoso
@@ -46,10 +60,25 @@ fn create_noise(option: usize) -> FastNoiseLite{
     //Asteroide (otro cuerpo celeste)
     if (option == 4){
 
-    }
-    //Planeta de fuego
-    if (option == 5){
+        noise.set_fractal_type(Some(FractalType::FBm)); 
+        noise.set_frequency(Some(0.05)); 
+        noise.set_fractal_octaves(Some(6)); 
+        noise.set_fractal_gain(Some(0.4));
+        noise.set_fractal_lacunarity(Some(2.2)); 
+        noise.set_noise_type(Some(NoiseType::Cellular)); 
+        noise.set_frequency(Some(0.08));
+        noise.set_seed(Some(123))
 
+    }
+    //Planeta de diamante
+    if (option == 5){
+        noise.set_noise_type(Some(NoiseType::Perlin)); 
+        noise.set_fractal_type(Some(FractalType::Ridged)); 
+        noise.set_frequency(Some(0.02)); 
+        noise.set_fractal_octaves(Some(5)); 
+        noise.set_fractal_gain(Some(0.5)); 
+        noise.set_fractal_lacunarity(Some(2.0)); 
+        noise.set_seed(Some(42));
     }
     //Planeta de piel humana
     if (option == 6){
@@ -66,6 +95,7 @@ fn create_noise(option: usize) -> FastNoiseLite{
 }
 
 fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Vertex], option: usize) {
+
 
 
   // Transform vertices
@@ -122,6 +152,9 @@ fn main() {
     let framebuffer_width = 1000;
     let framebuffer_height = 1000;
     let mut option = 0;
+
+    let mut angle:f32 = 0.0;
+
 
     let mut time:f32 = 0.0;
 
@@ -184,14 +217,29 @@ fn main() {
             uniform.noise = noise;
             option = 2;
         }
+        if window.is_key_down(Key::Key4){
+            noise = create_noise(4);
+            uniform.noise = noise;
+            option = 4;
+        }
+        if window.is_key_down(Key::Key5){
+            noise = create_noise(5);
+            uniform.noise = noise;
+            option = 5;
+        }
 
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
         framebuffer.clear();
         time += 1.0;
+        angle += PI/350.0;
+        let(x,y) = traslaton_movement(angle, 10.0);
+        translation.x = x;
+        translation.y = y;
         //Iniciar aqui
         uniform.model_matrix = create_model_matrix(translation, scale, rotation);
         uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
         uniform.time = time;
+
 
 
 

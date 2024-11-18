@@ -50,6 +50,12 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: 
     else if (planet_option == 2.0){
         return rocks_sufrace_shader(fragment, uniforms)
     }
+    else if (planet_option == 4.0){
+        return asteroid_shader(fragment, uniforms)
+    }
+    else if (planet_option == 5.0){
+        return diamond_planet_shader(fragment, uniforms)
+    }
     else{
         let stripe_width = 0.5; // Adjust the width of the stripes as needed
         let x = fragment.vertex_position.x;
@@ -64,15 +70,69 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: 
 
 
 pub fn rocks_sufrace_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
-    Color::new(255, 255, 255)
-}
-
-pub fn sun_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let zoom = 100;
     let x = fragment.vertex_position.x;
     let y = fragment.vertex_position.y;
-    let noise = uniforms.noise.get_noise_2d((x)* zoom as f32 + uniforms.time, (y) * zoom as f32 + uniforms.time );
+    let noise = uniforms.noise.get_noise_2d((x)* zoom as f32, (y) * zoom as f32);
+    
+    let final_color = if noise > 0.65 { Color::new(201, 208, 173)} else {Color::new(62, 47, 37)};
+    final_color
 
+}
+
+pub fn sun_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    let zoom = 50;
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+    let noise = uniforms.noise.get_noise_2d((x)* zoom as f32 + uniforms.time, (y) * zoom as f32 + uniforms.time );
     let final_color = if noise > 0.5 { Color::new(255,102,0)} else {Color::new(242,242,23)};
     final_color
+}
+
+pub fn asteroid_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
+   // Scale coordinates to adjust noise texture size
+   let zoom = -1500.0; // Adjust zoom to control the texture scale
+   let x = fragment.vertex_position.x;
+   let y = fragment.vertex_position.y;
+   
+   // Get 2D noise based on the fragment's position and time
+   let noise_value = uniforms.noise.get_noise_2d(
+       (-x * zoom) ,
+       (-y * zoom) 
+   );
+   
+
+
+   // Color based on the noise value to simulate asteroid surface
+   let final_color = if noise_value > -0.80 {
+       Color::new(105, 105, 105) // Gray color for rocky surface
+   } else {
+       Color::new(70,70,70) // Darker color for rough patches
+   };
+
+   final_color
+}
+
+pub fn diamond_planet_shader(fragment: &Fragment, uniforms: &Uniforms)-> Color{
+   let zoom = 700.0; // Adjust zoom to control the texture scale
+   let x = fragment.vertex_position.x;
+   let y = fragment.vertex_position.y;
+   
+   // Get 2D noise based on the fragment's position and time
+   let noise_value = uniforms.noise.get_noise_2d(
+       (-x * zoom) ,
+       (-y * zoom) 
+   );
+
+   println!("Noise value: {}", noise_value);
+
+
+   // Color based on the noise value to simulate asteroid surface
+   let final_color = if noise_value > 0.4 {
+       Color::new(105, 105, 105) // Gray color for rocky surface
+   } else {
+        Color::new(0,255,0)
+   };
+
+   final_color
 }
