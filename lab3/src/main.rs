@@ -23,8 +23,44 @@ use color::Color;
 use obj::Obj;
 use camera::Camera;
 
-fn create_noise() -> FastNoiseLite{
-    let mut noise = FastNoiseLite::with_seed(1337);
+fn create_noise(option: usize) -> FastNoiseLite{
+    let mut noise = FastNoiseLite::new();
+    //Estrella del sistema
+    if (option == 1){
+        noise.set_noise_type(Some(NoiseType::Perlin)); 
+        noise.set_fractal_type(Some(FractalType::Ridged)); // Adds detail and contrast
+        noise.set_frequency(Some(0.02)); // Low frequency for smooth, large features
+        noise.set_fractal_octaves(Some(5)); // More octaves for added complexity
+        noise.set_fractal_gain(Some(0.5)); // Controls the influence of each octave
+        noise.set_fractal_lacunarity(Some(2.0)); // Controls the scaling of frequency for each octave
+        noise.set_seed(Some(42));
+    }
+    //Planeta rocoso
+    if (option == 2){
+
+    }
+    //Planeta gaseoso
+    if (option == 3){
+
+    }
+    //Asteroide (otro cuerpo celeste)
+    if (option == 4){
+
+    }
+    //Planeta de fuego
+    if (option == 5){
+
+    }
+    //Planeta de piel humana
+    if (option == 6){
+
+    }
+    //Planeta de piedras neón
+    if (option == 7){
+
+    }
+
+    
 
     noise
 }
@@ -88,7 +124,7 @@ fn main() {
 
     let mut time:f32 = 0.0;
 
-    let noise = create_noise();
+    let noise = create_noise(1);
    
 
     let mut camera = Camera::new(
@@ -124,13 +160,13 @@ fn main() {
     framebuffer.set_background_color(Color::new(0, 51, 51));
 
     println!("--- Loading OBJ File ---");
-    let obj = Obj::load("assets/ship.obj").expect("Failed to load obj");
+    let obj = Obj::load("assets/sphere.obj").expect("Failed to load obj");
     let array = obj.get_vertex_array();
     println!("Loaded {} vertices from OBJ file", array.len());
 
     let mut translation = Vec3::new(0.0, 0.0, 0.0);
     let mut rotation = Vec3::new(0.0, 0.0, 0.0);
-    let mut scale = 0.1f32;
+    let mut scale = 1.0f32;
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -140,10 +176,11 @@ fn main() {
 
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
         framebuffer.clear();
-        time += 0.32;
+        time += 1.0;
         //Iniciar aqui
         uniform.model_matrix = create_model_matrix(translation, scale, rotation);
         uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
+        uniform.time = time;
 
 
 

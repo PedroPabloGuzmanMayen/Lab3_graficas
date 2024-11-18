@@ -43,15 +43,23 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
 
 
 pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: f32) -> Color {
-    let stripe_width = 0.5; // Adjust the width of the stripes as needed
-    let x = fragment.vertex_position.x;
-    let red = Color::new(255, 0, 0); // Red stripe
-    let blue = Color::new(0, 0, 255); // Blue stripe
 
-    let t = ((x / stripe_width) as i32 % 2) as f32;
-    let color = Color::lerp(&red, &blue, t);
+    if (planet_option == 1.0){
+        return sun_shader(fragment, uniforms)
+    }
+    else if (planet_option == 2.0){
+        return rocks_sufrace_shader(fragment, uniforms)
+    }
+    else{
+        let stripe_width = 0.5; // Adjust the width of the stripes as needed
+        let x = fragment.vertex_position.x;
+        let red = Color::new(255, 0, 0); // Red stripe
+        let blue = Color::new(0, 0, 255); // Blue stripe
 
-    color * fragment.intensity
+        let t = ((x / stripe_width) as i32 % 2) as f32;
+        let color = Color::lerp(&red, &blue, t);
+        return color * fragment.intensity  
+    }
 }
 
 
@@ -60,5 +68,11 @@ pub fn rocks_sufrace_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 }
 
 pub fn sun_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
-    Color::new(255, 255, 255)
+    let zoom = 100;
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+    let noise = uniforms.noise.get_noise_2d((x)* zoom as f32 + uniforms.time, (y) * zoom as f32 + uniforms.time );
+
+    let final_color = if noise > 0.5 { Color::new(255,102,0)} else {Color::new(242,242,23)};
+    final_color
 }
