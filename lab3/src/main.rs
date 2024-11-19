@@ -3,6 +3,7 @@ use minifb::{Key, Window, WindowOptions};
 use std::{f32::consts::PI};
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType, CellularDistanceFunction, CellularReturnType};
 
+mod model;
 mod framebuffer;
 mod triangle;
 mod line;
@@ -14,9 +15,13 @@ mod uniforms;
 mod shaders;
 mod obj;
 mod camera;
+mod frustrum;
+
+use model::Model;
 use framebuffer::FrameBuffer;
+use frustrum::Frustum;
 use vertex::Vertex;
-use shaders::{vertex_shader, fragment_shader};
+use shaders::{vertex_shader, fragment_shader, sun_shader, combined_shader};
 use uniforms::{Uniforms, create_projection_matrix, create_viewport_matrix, create_model_matrix, create_view_matrix};
 use triangle::triangle;
 use color::Color;
@@ -44,17 +49,24 @@ fn create_noise(option: usize) -> FastNoiseLite{
     }
     //Planeta rocoso
     if (option == 2){
-        noise.set_noise_type(Some(NoiseType::Perlin)); // Try Simplex for a different effect
-        noise.set_fractal_type(Some(FractalType::Ridged)); // Adds sharp, jagged features
-        noise.set_frequency(Some(0.1)); // Higher frequency for more details
-        noise.set_fractal_octaves(Some(5)); // More octaves for added complexity
-        noise.set_fractal_gain(Some(0.6)); // Controls the influence of each octave
-        noise.set_fractal_lacunarity(Some(2.5)); // Higher lacunarity for sharper features
+        noise.set_noise_type(Some(NoiseType::Perlin)); 
+        noise.set_fractal_type(Some(FractalType::Ridged)); 
+        noise.set_frequency(Some(0.1)); 
+        noise.set_fractal_octaves(Some(5)); 
+        noise.set_fractal_gain(Some(0.6)); 
+        noise.set_fractal_lacunarity(Some(2.5)); 
         noise.set_seed(Some(42)); 
 
     }
     //Planeta gaseoso
     if (option == 3){
+        noise.set_noise_type(Some(NoiseType::Perlin));
+        noise.set_fractal_type(Some(FractalType::Ridged));
+        noise.set_frequency(Some(0.05)); 
+        noise.set_fractal_octaves(Some(6)); 
+        noise.set_fractal_gain(Some(0.5)); 
+        noise.set_fractal_lacunarity(Some(2.0)); 
+        noise.set_seed(Some(42));
 
     }
     //Asteroide (otro cuerpo celeste)
@@ -96,15 +108,12 @@ fn create_noise(option: usize) -> FastNoiseLite{
 
 fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Vertex], option: usize) {
 
-
-
   // Transform vertices
   let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
   for vertex in vertex_array {
       let transformed = vertex_shader(vertex, uniforms);
       transformed_vertices.push(transformed);
   }
-
 
   // Primitive Assembly Stage
   let mut triangles = Vec::new();
@@ -153,6 +162,8 @@ fn main() {
     let framebuffer_height = 1000;
     let mut option = 0;
 
+    
+
     let mut angle:f32 = 0.0;
 
 
@@ -162,7 +173,7 @@ fn main() {
    
 
     let mut camera = Camera::new(
-        Vec3::new(5.0, 5.0, 1.0),
+        Vec3::new(5.0, 5.0, 1.0), 
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         false,
@@ -198,6 +209,7 @@ fn main() {
     let array = obj.get_vertex_array();
     println!("Loaded {} vertices from OBJ file", array.len());
 
+
     let mut translation = Vec3::new(0.0, 0.0, 0.0);
     let mut rotation = Vec3::new(0.0, 0.0, 0.0);
     let mut scale = 1.0f32;
@@ -217,6 +229,11 @@ fn main() {
             uniform.noise = noise;
             option = 2;
         }
+        if window.is_key_down(Key::Key3){
+            noise = create_noise(3);
+            uniform.noise = noise;
+            option = 3;
+        }
         if window.is_key_down(Key::Key4){
             noise = create_noise(4);
             uniform.noise = noise;
@@ -232,9 +249,10 @@ fn main() {
         framebuffer.clear();
         time += 1.0;
         angle += PI/350.0;
-        let(x,y) = traslaton_movement(angle, 10.0);
-        translation.x = x;
-        translation.y = y;
+        let (x,y) = traslaton_movement(angle, 1.0);
+        //translation.x = x;
+        //translation.y = y;
+        //rotation.z += 1.0;
         //Iniciar aqui
         uniform.model_matrix = create_model_matrix(translation, scale, rotation);
         uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);

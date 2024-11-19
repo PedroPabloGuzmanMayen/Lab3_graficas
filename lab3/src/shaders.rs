@@ -48,7 +48,10 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: 
         return sun_shader(fragment, uniforms)
     }
     else if (planet_option == 2.0){
-        return rocks_sufrace_shader(fragment, uniforms)
+        return combined_shader(fragment, uniforms)
+    }
+    else if (planet_option == 3.0){
+        return gas_planet_shader(fragment, uniforms)
     }
     else if (planet_option == 4.0){
         return asteroid_shader(fragment, uniforms)
@@ -124,7 +127,6 @@ pub fn diamond_planet_shader(fragment: &Fragment, uniforms: &Uniforms)-> Color{
        (-y * zoom) 
    );
 
-   println!("Noise value: {}", noise_value);
 
 
    // Color based on the noise value to simulate asteroid surface
@@ -136,3 +138,66 @@ pub fn diamond_planet_shader(fragment: &Fragment, uniforms: &Uniforms)-> Color{
 
    final_color
 }
+
+pub fn gas_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
+    let zoom = 100.0;
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+    let noise_value = uniforms.noise.get_noise_2d(
+        (-x * zoom) ,
+        (-y * zoom) 
+    );
+ 
+    println!("Noise value: {}", noise_value);
+    let final_color = if noise_value > 0.4 {
+        Color::new(105, 105, 105) // Gray color for rocky surface
+    } else {
+         Color::new(0,255,0)
+    };
+ 
+    final_color
+}
+
+//Luna a un planeta
+pub fn combined_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    // Rock surface shader parameters
+    let zoom = 100.0;
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+    let noise = uniforms.noise.get_noise_2d(x * zoom, y * zoom);
+
+    // Define colors for the rocky surface
+    let rock_color = if noise > 0.65 {
+        Color::new(201, 208, 173) // Light rock color
+    } else {
+        Color::new(62, 47, 37) // Dark rock color
+    };
+
+    // Moving circle shader parameters
+    let circle_radius = 0.01; // Adjust size of the circle
+    let speed = 0.01; // Adjust speed of horizontal movement
+    let time = uniforms.time;
+
+    // Calculate the circle's moving position
+    let circle_x = (time * speed).sin() * 0.8; // Moves in the range of [-0.8, 0.8]
+    let circle_y = 0.0; // Keep the circle centered vertically
+
+    // Calculate the distance from the current fragment to the circle's center
+    let dx = x - circle_x;
+    let dy = y - circle_y;
+    let distance_from_circle_center = (dx * dx + dy * dy).sqrt();
+
+    // Check if the fragment is inside the circle
+    let is_inside_circle = distance_from_circle_center < circle_radius;
+
+    // Define color for the moving circle
+    let circle_color = Color::new(255, 0, 0); // White circle
+
+    // Blend the rock surface with the moving circle
+    if is_inside_circle {
+        circle_color
+    } else {
+        rock_color
+    }
+}
+

@@ -47,6 +47,13 @@ impl Color {
             ((self.b as f32 * blend.b as f32) / 255.0) as u8
         )
     }
+    pub fn blend_lighten(&self, blend: &Color) -> Color {
+        Color::new(
+            self.r.max(blend.r),
+            self.g.max(blend.g),
+            self.b.max(blend.b)
+        )
+    }
 
     pub fn to_hex(&self) -> u32 {
         ((self.r as u32) << 16) | ((self.g as u32) << 8) | (self.b as u32)
