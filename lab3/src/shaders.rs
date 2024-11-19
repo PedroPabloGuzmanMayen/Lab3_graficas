@@ -51,7 +51,7 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: 
         return combined_shader(fragment, uniforms)
     }
     else if (planet_option == 3.0){
-        return gas_planet_shader(fragment, uniforms)
+        return combined_gas_planet_with_rings_shader(fragment, uniforms)
     }
     else if (planet_option == 4.0){
         return asteroid_shader(fragment, uniforms)
@@ -158,6 +158,50 @@ pub fn gas_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
  
     final_color
 }
+
+pub fn ring_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    let ring_center_x = 0.0; // Center of the ring system
+    let ring_center_y = 0.0;
+    let ring_width = 0.02; // Width of the ring bands
+    let ring_spacing = 0.05; // Spacing between bands
+
+    // Convert fragment position to polar coordinates relative to the ring center
+    let dx = fragment.vertex_position.x - ring_center_x;
+    let dy = fragment.vertex_position.y - ring_center_y;
+    let distance = (dx * dx + dy * dy).sqrt();
+
+    // Create concentric bands
+    let band_value = (distance / ring_spacing).fract(); // Normalize within band spacing
+    let is_ring_band = band_value < ring_width;
+
+    if is_ring_band {
+        // Return ring color
+        Color::new(200, 200, 200) // A light gray color for the ring bands
+    } else {
+        // Transparent background (skipped color logic as you have no alpha)
+        Color::new(0, 0, 0) // Assume black as the transparent equivalent
+    }
+}
+
+pub fn combined_gas_planet_with_rings_shader(
+    fragment: &Fragment,
+    uniforms: &Uniforms,
+) -> Color {
+    // Gas planet shader
+    let gas_planet_color = gas_planet_shader(fragment, uniforms);
+
+    // Ring shader
+    let ring_color = ring_shader(fragment, uniforms);
+
+    // Combine: Check if the fragment is part of the ring
+    if ring_color.to_hex() != Color::new(0, 0, 0).to_hex() {
+        ring_color // Render the ring color
+    } else {
+        gas_planet_color // Render the gas planet color
+    }
+}
+
+
 
 pub fn skin_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
     let zoom = 100.0;
