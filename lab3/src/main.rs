@@ -94,6 +94,13 @@ fn create_noise(option: usize) -> FastNoiseLite{
     }
     //Planeta de piel humana
     if (option == 6){
+        noise.set_noise_type(Some(NoiseType::OpenSimplex2)); 
+        noise.set_fractal_type(Some(FractalType::FBm)); 
+        noise.set_frequency(Some(0.3)); // Adjust for smoother, finer texture
+        noise.set_fractal_octaves(Some(6)); 
+        noise.set_fractal_gain(Some(0.4)); // Lower gain for subtle transitions
+        noise.set_fractal_lacunarity(Some(2.0)); 
+        noise.set_seed(Some(101));
 
     }
     //Planeta de piedras neón
@@ -173,7 +180,7 @@ fn main() {
    
 
     let mut camera = Camera::new(
-        Vec3::new(5.0, 5.0, 1.0), 
+        Vec3::new(5.0, -2.0, 0.0), 
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         false,
@@ -244,6 +251,11 @@ fn main() {
             uniform.noise = noise;
             option = 5;
         }
+        if window.is_key_down(Key::Key6){
+            noise = create_noise(6);
+            uniform.noise = noise;
+            option = 6;
+        }
 
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
         framebuffer.clear();
@@ -252,7 +264,7 @@ fn main() {
         let (x,y) = traslaton_movement(angle, 1.0);
         //translation.x = x;
         //translation.y = y;
-        //rotation.z += 1.0;
+        rotation.y += 0.01;
         //Iniciar aqui
         uniform.model_matrix = create_model_matrix(translation, scale, rotation);
         uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);

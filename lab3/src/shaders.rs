@@ -59,6 +59,9 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: 
     else if (planet_option == 5.0){
         return diamond_planet_shader(fragment, uniforms)
     }
+    else if (planet_option == 6.0){
+        return combined_skin_vein_shader(fragment, uniforms)
+    }
     else{
         let stripe_width = 0.5; // Adjust the width of the stripes as needed
         let x = fragment.vertex_position.x;
@@ -128,12 +131,11 @@ pub fn diamond_planet_shader(fragment: &Fragment, uniforms: &Uniforms)-> Color{
    );
 
 
-
    // Color based on the noise value to simulate asteroid surface
    let final_color = if noise_value > 0.4 {
-       Color::new(105, 105, 105) // Gray color for rocky surface
+       Color::new(0,195,255) // Gray color for rocky surface
    } else {
-        Color::new(0,255,0)
+        Color::new(0,246,255)
    };
 
    final_color
@@ -148,15 +150,79 @@ pub fn gas_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
         (-y * zoom) 
     );
  
-    println!("Noise value: {}", noise_value);
     let final_color = if noise_value > 0.4 {
-        Color::new(105, 105, 105) // Gray color for rocky surface
+        Color::new(164, 63, 47) // Gray color for rocky surface
     } else {
-         Color::new(0,255,0)
+         Color::new(145,170,95)
     };
  
     final_color
 }
+
+pub fn skin_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
+    let zoom = 100.0;
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+    let noise_value = uniforms.noise.get_noise_2d(
+        (-x * zoom) ,
+        (-y * zoom) 
+    );
+
+ 
+    let final_color = if noise_value > 0.4 {
+        Color::new(255,195,160) // Gray color for rocky surface
+    } else {
+         Color::new(255,217,194)
+    };
+ 
+    final_color
+}
+
+pub fn vein_shader(fragment: &Fragment, _uniforms: &Uniforms) -> Color {
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+
+    // Sine wave for veins
+    let frequency = 10.0; // Adjust for vein density
+    let amplitude = 0.2; // Adjust for vein width
+    let sine_wave = (y * frequency).sin() * amplitude;
+
+    // Threshold for vein width
+    let vein_threshold = 0.05;
+
+    if (x - sine_wave).abs() < vein_threshold {
+        // Red tone for veins
+        Color::new(180, 50, 50) // Subtle red for veins
+    } else {
+        // Return a "neutral" color when not in a vein region
+        Color::new(0, 0, 0) // Black or neutral contribution
+    }
+}
+
+
+pub fn combined_skin_vein_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    // Get base skin color
+    let skin_color = skin_shader(fragment, uniforms);
+
+    // Get vein color
+    let vein_color = vein_shader(fragment, uniforms);
+
+    // Blend the colors based on vein presence
+    let is_in_vein = vein_color.to_hex() != Color::new(0, 0, 0).to_hex();
+
+    if is_in_vein {
+        // Blend skin and vein colors
+        Color::new(
+            ((skin_color.r as u16 + vein_color.r as u16) /2) as u8,
+            ((skin_color.g as u16 + vein_color.g as u16) /2) as u8,
+            ((skin_color.b as u16 + vein_color.b as u16)/2) as u8,
+        )
+    } else {
+        // Default to skin color
+        skin_color
+    }
+}
+
 
 //Luna a un planeta
 pub fn combined_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
