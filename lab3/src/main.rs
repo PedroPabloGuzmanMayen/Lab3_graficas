@@ -16,8 +16,10 @@ mod shaders;
 mod obj;
 mod camera;
 mod frustrum;
+mod Celestial_body;
 
 use model::Model;
+use Celestial_body::CelestialBody;
 use framebuffer::FrameBuffer;
 use frustrum::Frustum;
 use vertex::Vertex;
@@ -28,8 +30,11 @@ use color::Color;
 use obj::Obj;
 use camera::Camera;
 
+const ROTATION_SPEED: f32 = PI/450.0;
+
 //Angle: el ángulo en el que se bica el planeta con respecto al centro del mundo
 //Radius: El radio de la trayectoria de la órbita del planeta
+
 pub fn traslaton_movement(angle: f32, radius: f32) -> (f32, f32){
     (radius * angle.cos(), radius * angle.sin())
 }
@@ -168,6 +173,64 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
 }
 
+fn render_scene(
+    framebuffer: &mut FrameBuffer,
+    uniforms: &mut Uniforms,
+    models: &Vec<Model>,
+    option: usize,
+) {
+    let frustum = Frustum::new(&uniforms.view_matrix, &uniforms.projection_matrix);
+
+    for model in models {
+        // Update model matrix in uniforms
+        uniforms.model_matrix = create_model_matrix(model.traslation, model.scale, model.rotation);
+
+        // Perform frustum culling (optional)
+        if !frustum.is_sphere_inside(&model.traslation, model.scale) {
+            continue;
+        }
+
+        // Transform vertices
+        let mut transformed_vertices = Vec::with_capacity(model.model.get_vertex_array().len());
+        for vertex in &model.model.get_vertex_array() {
+            let transformed = vertex_shader(vertex, uniforms);
+            transformed_vertices.push(transformed);
+        }
+
+        // Primitive Assembly Stage
+        let mut triangles = Vec::new();
+        for i in (0..transformed_vertices.len()).step_by(3) {
+            if i + 2 < transformed_vertices.len() {
+                triangles.push([
+                    transformed_vertices[i].clone(),
+                    transformed_vertices[i + 1].clone(),
+                    transformed_vertices[i + 2].clone(),
+                ]);
+            }
+        }
+
+        // Rasterization Stage
+        let mut fragments = Vec::new();
+        for tri in &triangles {
+            fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
+        }
+
+        // Render fragments
+        for fragment in fragments {
+            let x = fragment.position.x as usize;
+            let y = fragment.position.y as usize;
+
+            // Bounds check
+            if x < framebuffer.width && y < framebuffer.height {
+                let shaded_color = (model.fragment_shader)(&fragment, uniforms);
+                framebuffer.set_current_color(shaded_color);
+                framebuffer.point(x, y, fragment.depth);
+            }
+        }
+    }
+}
+
+
 
 fn main() {
     let window_width = 1000;
@@ -184,10 +247,24 @@ fn main() {
     let mut time:f32 = 0.0;
 
     let mut noise = create_noise(1);
+
+    let obj1 = Obj::load("assets/sphere.obj").expect("Failed to load obj");
+    let obj2 = Obj::load("assets/sphere.obj").expect("Failed to load obj");
+    /*
+        pub model: Obj,
+    pub fragment_shader: fn(fragment: &Fragment, uniforms: &Uniforms) -> Color,
+    pub traslation: Vec3,
+    pub rotation: Vec3,
+    pub scale: f32,
+    pub traslation_speed: f32,
+    pub rotation_speed: f32,
+    pub noise: FastNoiseLite
+     */
+
    
 
     let mut camera = Camera::new(
-        Vec3::new(5.0, -2.0, 0.0), 
+        Vec3::new(0.0, 0.0, 10.0), 
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         false,
@@ -223,10 +300,15 @@ fn main() {
     let array = obj.get_vertex_array();
     println!("Loaded {} vertices from OBJ file", array.len());
 
-
+    //obj_path: &str, traslation: Vec3, rotation: Vec3, orbit_radius: f32, scale: f32, orbit_speed: f32, orbit_center: Vec3
     let mut translation = Vec3::new(0.0, 0.0, 0.0);
     let mut rotation = Vec3::new(0.0, 0.0, 0.0);
     let mut scale = 1.0f32;
+    let mut celestial_bodies = vec![
+        CelestialBody::new("assets/sphere.obj", Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 0.0, 2.0, 0.0, Vec3::new(0.0,0.0,0.0), 1.0), 
+        CelestialBody::new("assets/sphere.obj", Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 4.0, 1.0, 1.0, Vec3::new(0.0,0.0,0.0), 2.0)
+        
+    ];
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -272,20 +354,37 @@ fn main() {
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
         framebuffer.clear();
         time += 1.0;
-        angle += PI/350.0;
-        let (x,y) = traslaton_movement(angle, 1.0);
+        //angle += PI/350.0;
+        //let (x,y) = traslaton_movement(angle, 1.0);
         //translation.x = x;
         //translation.y = y;
         //rotation.y += 0.01;
         //Iniciar aqui
-        uniform.model_matrix = create_model_matrix(translation, scale, rotation);
-        uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
-        uniform.time = time;
+        //uniform.model_matrix = create_model_matrix(translation, scale, rotation);
+        //uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
+        //uniform.time = time;
+        for body in celestial_bodies.iter_mut() {
+            angle += ROTATION_SPEED;
+            let (x, y) = traslaton_movement(angle, body.orbit_radius);
+            body.translation.x = x;
+            body.translation.y = y;
+            
+            uniform.model_matrix = create_model_matrix(
+                body.translation,
+                body.scale,
+                body.rotation
+            );
+            uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
+            uniform.time = time + 1.0;
+            uniform.noise = create_noise(body.shader_option as usize);
+
+            render(&mut framebuffer, &uniform, &body.vertices, body.shader_option as usize);
+        }
 
 
 
 
-        render(&mut framebuffer, &uniform, &array, option);
+        //render(&mut framebuffer, &uniform, &array, option);
 
         window
             .update_with_buffer(&framebuffer.cast_buffer(), framebuffer_width, framebuffer_height)

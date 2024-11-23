@@ -7,14 +7,14 @@ use crate::uniforms::Uniforms;
 use crate::fragment::Fragment;
 
 pub struct Model {
-    model: Obj,
-    fragment_shader: fn(fragment: &Fragment, uniforms: &Uniforms) -> Color,
-    traslation: Vec3,
-    rotation: Vec3,
-    scale: f32,
-    traslation_speed: f32,
-    rotation_speed: f32,
-    noise: FastNoiseLite
+    pub model: Obj,
+    pub fragment_shader: fn(fragment: &Fragment, uniforms: &Uniforms) -> Color,
+    pub traslation: Vec3,
+    pub rotation: Vec3,
+    pub scale: f32,
+    pub traslation_speed: f32,
+    pub rotation_speed: f32,
+    pub noise: FastNoiseLite
 
 }
 
