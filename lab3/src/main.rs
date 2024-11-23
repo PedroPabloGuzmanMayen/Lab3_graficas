@@ -17,8 +17,11 @@ mod obj;
 mod camera;
 mod frustrum;
 mod Celestial_body;
+mod music;
+mod texture;
 
 use model::Model;
+use music::AudioPlayer;
 use Celestial_body::CelestialBody;
 use framebuffer::FrameBuffer;
 use frustrum::Frustum;
@@ -173,64 +176,6 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
 }
 
-fn render_scene(
-    framebuffer: &mut FrameBuffer,
-    uniforms: &mut Uniforms,
-    models: &Vec<Model>,
-    option: usize,
-) {
-    let frustum = Frustum::new(&uniforms.view_matrix, &uniforms.projection_matrix);
-
-    for model in models {
-        // Update model matrix in uniforms
-        uniforms.model_matrix = create_model_matrix(model.traslation, model.scale, model.rotation);
-
-        // Perform frustum culling (optional)
-        if !frustum.is_sphere_inside(&model.traslation, model.scale) {
-            continue;
-        }
-
-        // Transform vertices
-        let mut transformed_vertices = Vec::with_capacity(model.model.get_vertex_array().len());
-        for vertex in &model.model.get_vertex_array() {
-            let transformed = vertex_shader(vertex, uniforms);
-            transformed_vertices.push(transformed);
-        }
-
-        // Primitive Assembly Stage
-        let mut triangles = Vec::new();
-        for i in (0..transformed_vertices.len()).step_by(3) {
-            if i + 2 < transformed_vertices.len() {
-                triangles.push([
-                    transformed_vertices[i].clone(),
-                    transformed_vertices[i + 1].clone(),
-                    transformed_vertices[i + 2].clone(),
-                ]);
-            }
-        }
-
-        // Rasterization Stage
-        let mut fragments = Vec::new();
-        for tri in &triangles {
-            fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
-        }
-
-        // Render fragments
-        for fragment in fragments {
-            let x = fragment.position.x as usize;
-            let y = fragment.position.y as usize;
-
-            // Bounds check
-            if x < framebuffer.width && y < framebuffer.height {
-                let shaded_color = (model.fragment_shader)(&fragment, uniforms);
-                framebuffer.set_current_color(shaded_color);
-                framebuffer.point(x, y, fragment.depth);
-            }
-        }
-    }
-}
-
-
 
 fn main() {
     let window_width = 1000;
@@ -239,7 +184,8 @@ fn main() {
     let framebuffer_height = 1000;
     let mut option = 0;
 
-    
+    let music = AudioPlayer::new("assets/observatory.mp3");
+    music.play();
 
     let mut angle:f32 = 0.0;
 
@@ -264,7 +210,7 @@ fn main() {
    
 
     let mut camera = Camera::new(
-        Vec3::new(0.0, 0.0, 10.0), 
+        Vec3::new(0.0, 0.0, 50.0), 
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         false,
@@ -295,10 +241,8 @@ fn main() {
 
     framebuffer.set_background_color(Color::new(0, 51, 51));
 
-    println!("--- Loading OBJ File ---");
     let obj = Obj::load("assets/sphere.obj").expect("Failed to load obj");
     let array = obj.get_vertex_array();
-    println!("Loaded {} vertices from OBJ file", array.len());
 
     //obj_path: &str, traslation: Vec3, rotation: Vec3, orbit_radius: f32, scale: f32, orbit_speed: f32, orbit_center: Vec3
     let mut translation = Vec3::new(0.0, 0.0, 0.0);
@@ -306,7 +250,10 @@ fn main() {
     let mut scale = 1.0f32;
     let mut celestial_bodies = vec![
         CelestialBody::new("assets/sphere.obj", Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 0.0, 2.0, 0.0, Vec3::new(0.0,0.0,0.0), 1.0), 
-        CelestialBody::new("assets/sphere.obj", Vec3::new(4.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 4.0, 1.0, 1.0, Vec3::new(0.0,0.0,0.0), 2.0)
+        CelestialBody::new("assets/sphere.obj", Vec3::new(4.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 4.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 2.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(8.0, 0.0, 4.0), Vec3::new(0.0, 0.0, 0.0), 8.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 3.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(12.0, 0.0, 6.0), Vec3::new(0.0, 0.0, 0.0), 12.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 4.0)
+
         
     ];
 
@@ -368,7 +315,7 @@ fn main() {
             let (x, y) = traslaton_movement(angle, body.orbit_radius);
             body.translation.x = x;
             body.translation.y = y;
-            
+            body.rotation.y += body.orbit_speed;
             uniform.model_matrix = create_model_matrix(
                 body.translation,
                 body.scale,
