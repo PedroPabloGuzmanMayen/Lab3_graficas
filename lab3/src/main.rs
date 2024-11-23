@@ -69,7 +69,7 @@ fn create_noise(option: usize) -> FastNoiseLite{
         noise.set_seed(Some(42));
 
     }
-    //Asteroide (otro cuerpo celeste)
+    //Asteroide (otro cuerpo celeste, 10 pts)
     if (option == 4){
 
         noise.set_fractal_type(Some(FractalType::FBm)); 
@@ -103,8 +103,15 @@ fn create_noise(option: usize) -> FastNoiseLite{
         noise.set_seed(Some(101));
 
     }
-    //Planeta de piedras neón
+    //Planeta con ciudades
     if (option == 7){
+        noise.set_noise_type(Some(NoiseType::Perlin));
+        noise.set_fractal_type(Some(FractalType::Ridged));
+        noise.set_frequency(Some(0.02));
+        noise.set_fractal_octaves(Some(5));
+        noise.set_fractal_gain(Some(0.5));
+        noise.set_fractal_lacunarity(Some(2.0));
+        noise.set_seed(Some(42));
 
     }
 
@@ -256,6 +263,11 @@ fn main() {
             uniform.noise = noise;
             option = 6;
         }
+        if window.is_key_down(Key::Key7){
+            noise = create_noise(7);
+            uniform.noise = noise;
+            option = 7;
+        }
 
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
         framebuffer.clear();
@@ -264,7 +276,7 @@ fn main() {
         let (x,y) = traslaton_movement(angle, 1.0);
         //translation.x = x;
         //translation.y = y;
-        rotation.y += 0.01;
+        //rotation.y += 0.01;
         //Iniciar aqui
         uniform.model_matrix = create_model_matrix(translation, scale, rotation);
         uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);

@@ -62,6 +62,9 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: 
     else if (planet_option == 6.0){
         return combined_skin_vein_shader(fragment, uniforms)
     }
+    else if (planet_option == 7.0){
+        return light_city_with_rain_shader(fragment, uniforms)
+    }
     else{
         let stripe_width = 0.5; // Adjust the width of the stripes as needed
         let x = fragment.vertex_position.x;
@@ -90,6 +93,7 @@ pub fn sun_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let zoom = 50;
     let x = fragment.vertex_position.x;
     let y = fragment.vertex_position.y;
+    //Simula mover la lava de la estrella con el tiempo (10pts)
     let noise = uniforms.noise.get_noise_2d((x)* zoom as f32 + uniforms.time, (y) * zoom as f32 + uniforms.time );
     let final_color = if noise > 0.5 { Color::new(255,102,0)} else {Color::new(242,242,23)};
     final_color
@@ -159,6 +163,7 @@ pub fn gas_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
     final_color
 }
 
+//Sistema de anillos (20 pts)
 pub fn ring_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let ring_center_x = 0.0; // Center of the ring system
     let ring_center_y = 0.0;
@@ -310,4 +315,57 @@ pub fn combined_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
         rock_color
     }
 }
+
+
+pub fn light_city_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color{
+    let zoom = 100.0;
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+    let noise = uniforms.noise.get_noise_2d(x * zoom, y * zoom);
+
+    // Define colors for the rocky surface
+    let final_color = if noise > 0.65 {
+        Color::new(201, 208, 173) // Light rock color
+    } else {
+        Color::new(62, 47, 37) // Dark rock color
+    };
+
+    final_color
+}
+
+//Simulación de lluvia y vientos (10 puntos)
+pub fn light_city_with_rain_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    let zoom = 100.0;
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+
+    // Base city light shader
+    let city_noise = uniforms.noise.get_noise_2d(x * zoom, y * zoom);
+    let base_color = if city_noise > 0.65 {
+        Color::new(253, 170, 72) // Light rock color
+    } else {
+        Color::new(71, 71, 71) // Dark rock color
+    };
+
+    // Rain effect
+    let time = uniforms.time; // Uniform to animate the rain
+    let rain_intensity = 0.6; // Brightness of the rain streaks
+    let rain_speed = 10.0; // Speed of the rain fall
+    let streak_width = 0.02; // Thickness of each streak
+
+    // Calculate rain streaks based on vertical position and animation
+    let streak_position = (x * 10.0 + time * rain_speed) % 1.0; // Repeating streak pattern
+    let is_rain = (streak_position - y * 5.0).abs() < streak_width;
+
+    // Define rain color
+    let rain_color = if is_rain {
+        Color::new(200, 200, 255) * (rain_intensity) // Light blue for rain
+    } else {
+        Color::new(0, 0, 0) * 0.0 // No rain
+    };
+
+    // Combine base color with rain effect
+    base_color.blend_normal(&rain_color)
+}
+
 
