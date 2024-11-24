@@ -3,7 +3,7 @@ use minifb::{Key, Window, WindowOptions};
 use std::{f32::consts::PI};
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType, CellularDistanceFunction, CellularReturnType};
 use image::{open, DynamicImage, GenericImageView};
-mod model;
+
 mod framebuffer;
 mod triangle;
 mod line;
@@ -21,7 +21,6 @@ mod music;
 mod texture;
 mod skybox;
 
-use model::Model;
 use music::AudioPlayer;
 use Celestial_body::CelestialBody;
 use framebuffer::FrameBuffer;
