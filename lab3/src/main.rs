@@ -43,6 +43,72 @@ pub fn traslaton_movement(angle: f32, radius: f32) -> (f32, f32){
     (radius * angle.cos(), radius * angle.sin())
 }
 
+fn draw_orbit(framebuffer: &mut FrameBuffer, uniform: &Uniforms, orbit_radius: f32) {
+    let segments = 100; // Number of line segments to make the circle
+    let mut points = Vec::new();
+    
+    // Generate points around the circle
+    for i in 0..=segments {
+        let angle = (i as f32 * 2.0 * PI) / segments as f32;
+        let x = orbit_radius * angle.cos();
+        let y = orbit_radius * angle.sin();
+        
+        // Create a vertex for each point
+        let mut vertex = Vertex::new(Vec3::new(x, y, 0.0), Vec3::new(0.0, 0.0, 1.0), Vec2::new(0.0, 0.0));
+        vertex.color = Color::new(255,255,255);
+        points.push(vertex);
+    }
+    
+    // Draw lines between points to form the orbit
+    for i in 0..segments {
+        let v1 = &points[i];
+        let v2 = &points[i + 1];
+        
+        // Transform vertices
+        let transformed_v1 = vertex_shader(v1, uniform);
+        let transformed_v2 = vertex_shader(v2, uniform);
+        
+        // Basic line drawing between points
+        draw_line(framebuffer, 
+                 transformed_v1.position.x as i32, 
+                 transformed_v1.position.y as i32,
+                 transformed_v2.position.x as i32, 
+                 transformed_v2.position.y as i32,
+                 Color::new(255,255,255)); // Orbit color (subtle gray)
+    }
+}
+
+// Add this helper function to draw lines
+fn draw_line(framebuffer: &mut FrameBuffer, x0: i32, y0: i32, x1: i32, y1: i32, color: Color) {
+    let dx = (x1 - x0).abs();
+    let dy = -(y1 - y0).abs();
+    let sx = if x0 < x1 { 1 } else { -1 };
+    let sy = if y0 < y1 { 1 } else { -1 };
+    let mut err = dx + dy;
+    
+    let mut x = x0;
+    let mut y = y0;
+    
+    loop {
+        if x >= 0 && x < framebuffer.width as i32 && y >= 0 && y < framebuffer.height as i32 {
+            framebuffer.set_current_color(color);
+            framebuffer.point(x as usize, y as usize, 1.0); // Use 1.0 for depth to draw orbits behind planets
+        }
+        
+        if x == x1 && y == y1 { break; }
+        
+        let e2 = 2 * err;
+        if e2 >= dy {
+            err += dy;
+            x += sx;
+        }
+        if e2 <= dx {
+            err += dx;
+            y += sy;
+        }
+    }
+}
+
 
 fn create_noise(option: usize) -> FastNoiseLite{
     let mut noise = FastNoiseLite::new();
@@ -297,10 +363,17 @@ fn main() {
             option = 7;
         }
 
+        if window.is_key_down(Key::Enter){
+            camera.eye = Vec3::new(0.0, 0.0, 75.0)
+        }
+
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera, &mut last_mouse_pos);
         framebuffer.clear();
         skybox.render(&mut framebuffer, &uniform, camera.eye);
         time += 1.0;
+        for body in &celestial_bodies {
+            draw_orbit(&mut framebuffer, &uniform, body.orbit_radius);
+        }
         for body in celestial_bodies.iter_mut() {
             body.initial_angle += ROTATION_SPEED;
             let (x, y) = traslaton_movement(body.initial_angle, body.orbit_radius);
