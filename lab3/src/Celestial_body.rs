@@ -9,11 +9,12 @@ pub struct CelestialBody {
     pub orbit_speed: f32,
     pub orbit_radius: f32,
     pub orbit_center: Vec3,
-    pub shader_option: f32
+    pub shader_option: f32,
+    pub initial_angle: f32
 }
 
 impl CelestialBody {
-    pub fn new(obj_path: &str, traslation: Vec3, rotation: Vec3, orbit_radius: f32, scale: f32, orbit_speed: f32, orbit_center: Vec3, shader_option: f32) -> Self {
+    pub fn new(obj_path: &str, traslation: Vec3, rotation: Vec3, orbit_radius: f32, scale: f32, orbit_speed: f32, orbit_center: Vec3, shader_option: f32, initial_angle:f32) -> Self {
         let obj = Obj::load(obj_path).expect("Failed to load obj");
         CelestialBody {
             vertices: obj.get_vertex_array(),
@@ -23,7 +24,8 @@ impl CelestialBody {
             orbit_speed,
             orbit_radius,
             orbit_center,
-            shader_option
+            shader_option,
+            initial_angle
         }
     }
 

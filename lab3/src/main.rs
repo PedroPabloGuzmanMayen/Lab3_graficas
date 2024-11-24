@@ -1,8 +1,8 @@
-use nalgebra_glm::{Vec3, Mat4, Mat3, look_at};
+use nalgebra_glm::{Vec3, Mat4, Mat3, look_at, Vec4};
 use minifb::{Key, Window, WindowOptions};
 use std::{f32::consts::PI};
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType, CellularDistanceFunction, CellularReturnType};
-
+use image::{open, DynamicImage, GenericImageView};
 mod model;
 mod framebuffer;
 mod triangle;
@@ -19,6 +19,7 @@ mod frustrum;
 mod Celestial_body;
 mod music;
 mod texture;
+mod skybox;
 
 use model::Model;
 use music::AudioPlayer;
@@ -32,6 +33,7 @@ use triangle::triangle;
 use color::Color;
 use obj::Obj;
 use camera::Camera;
+use skybox::Skybox;
 
 const ROTATION_SPEED: f32 = PI/450.0;
 
@@ -129,7 +131,7 @@ fn create_noise(option: usize) -> FastNoiseLite{
 }
 
 fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Vertex], option: usize) {
-
+  //skybox.render(framebuffer, &uniforms);
   // Transform vertices
   let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
   for vertex in vertex_array {
@@ -183,6 +185,7 @@ fn main() {
     let framebuffer_width = 1000;
     let framebuffer_height = 1000;
     let mut option = 0;
+    let skybox = Skybox::new(5000);
 
     let music = AudioPlayer::new("assets/observatory.mp3");
     music.play();
@@ -210,7 +213,7 @@ fn main() {
    
 
     let mut camera = Camera::new(
-        Vec3::new(0.0, 0.0, 50.0), 
+        Vec3::new(0.0, 0.0, 10.0), 
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         false,
@@ -239,7 +242,7 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
-    framebuffer.set_background_color(Color::new(0, 51, 51));
+    framebuffer.set_background_color(Color::new(0, 0, 0));
 
     let obj = Obj::load("assets/sphere.obj").expect("Failed to load obj");
     let array = obj.get_vertex_array();
@@ -249,10 +252,10 @@ fn main() {
     let mut rotation = Vec3::new(0.0, 0.0, 0.0);
     let mut scale = 1.0f32;
     let mut celestial_bodies = vec![
-        CelestialBody::new("assets/sphere.obj", Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 0.0, 2.0, 0.0, Vec3::new(0.0,0.0,0.0), 1.0), 
-        CelestialBody::new("assets/sphere.obj", Vec3::new(4.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 4.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 2.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(8.0, 0.0, 4.0), Vec3::new(0.0, 0.0, 0.0), 8.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 3.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(12.0, 0.0, 6.0), Vec3::new(0.0, 0.0, 0.0), 12.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 4.0)
+        CelestialBody::new("assets/sphere.obj", Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 0.0, 2.0, 0.0, Vec3::new(0.0,0.0,0.0), 1.0, 0.0), 
+        CelestialBody::new("assets/sphere.obj", Vec3::new(4.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 4.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 2.0, 0.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(8.0, 0.0, 4.0), Vec3::new(0.0, 0.0, 0.0), 8.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 3.0, PI/2.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(12.0, 0.0, 6.0), Vec3::new(0.0, 0.0, 0.0), 12.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 4.0, (3.0*PI)/2.0)
 
         
     ];
@@ -300,6 +303,7 @@ fn main() {
 
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
         framebuffer.clear();
+        skybox.render(&mut framebuffer, &uniform, camera.eye);
         time += 1.0;
         //angle += PI/350.0;
         //let (x,y) = traslaton_movement(angle, 1.0);
@@ -311,8 +315,8 @@ fn main() {
         //uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
         //uniform.time = time;
         for body in celestial_bodies.iter_mut() {
-            angle += ROTATION_SPEED;
-            let (x, y) = traslaton_movement(angle, body.orbit_radius);
+            body.initial_angle += ROTATION_SPEED;
+            let (x, y) = traslaton_movement(body.initial_angle, body.orbit_radius);
             body.translation.x = x;
             body.translation.y = y;
             body.rotation.y += body.orbit_speed;
@@ -328,10 +332,6 @@ fn main() {
             render(&mut framebuffer, &uniform, &body.vertices, body.shader_option as usize);
         }
 
-
-
-
-        //render(&mut framebuffer, &uniform, &array, option);
 
         window
             .update_with_buffer(&framebuffer.cast_buffer(), framebuffer_width, framebuffer_height)
@@ -365,6 +365,7 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
     if window.is_key_down(Key::Up) {
 
         camera.zoom(zoom_speed);
+        println!("Presse up");
     }
     if window.is_key_down(Key::Down) {
 

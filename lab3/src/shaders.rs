@@ -66,14 +66,7 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, planet_option: 
         return light_city_with_rain_shader(fragment, uniforms)
     }
     else{
-        let stripe_width = 0.5; // Adjust the width of the stripes as needed
-        let x = fragment.vertex_position.x;
-        let red = Color::new(255, 0, 0); // Red stripe
-        let blue = Color::new(0, 0, 255); // Blue stripe
-
-        let t = ((x / stripe_width) as i32 % 2) as f32;
-        let color = Color::lerp(&red, &blue, t);
-        return color * fragment.intensity  
+        return Color::new(0,0,0) 
     }
 }
 
@@ -202,7 +195,7 @@ pub fn combined_gas_planet_with_rings_shader(
     if ring_color.to_hex() != Color::new(0, 0, 0).to_hex() {
         ring_color // Render the ring color
     } else {
-        gas_planet_color // Render the gas planet color
+        gas_planet_color
     }
 }
 
@@ -359,9 +352,9 @@ pub fn light_city_with_rain_shader(fragment: &Fragment, uniforms: &Uniforms) -> 
 
     // Define rain color
     let rain_color = if is_rain {
-        Color::new(200, 200, 255) * (rain_intensity) // Light blue for rain
+        (Color::new(200, 200, 255) * (rain_intensity)) // Light blue for rain
     } else {
-        Color::new(0, 0, 0) * 0.0 // No rain
+        (Color::new(0, 0, 0) * 0.0) 
     };
 
     // Combine base color with rain effect

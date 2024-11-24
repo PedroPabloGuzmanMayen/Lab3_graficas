@@ -1,5 +1,6 @@
 use crate::color::Color;
 use crate::bmp::write_bmp_file;
+use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType, CellularDistanceFunction, CellularReturnType};
 pub struct FrameBuffer {
     pub width: usize,
     pub height: usize,
@@ -21,6 +22,31 @@ impl FrameBuffer {
             zbuffer,
             background_color: default_color,
             current_color: default_color
+        }
+    }
+
+    pub fn clear_with_pattern(&mut self) {
+        let mut noise = FastNoiseLite::new();
+        noise.set_noise_type(Some(NoiseType::Cellular));
+        noise.set_frequency(Some(0.1)); // Adjust the frequency to control star distribution
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let fx = x as f32 / self.width as f32;
+                let fy = y as f32 / self.height as f32;
+
+                // Generate noise value for the pixel
+                let value = noise.get_noise_2d(fx, fy);
+
+                // Threshold to decide if the pixel is a star or background
+                if value > -0.77115 { // Adjust this threshold for star density
+                    self.buffer[y * self.width + x] = Color::new(255, 255, 255); // White star
+                } else {
+                    self.buffer[y * self.width + x] = Color::new(0, 0, 0); // Black sky
+                }
+
+                self.zbuffer[y * self.width + x] = f32::INFINITY; // Reset z-buffer
+            }
         }
     }
 
