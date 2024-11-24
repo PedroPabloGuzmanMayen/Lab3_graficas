@@ -1,5 +1,5 @@
 use nalgebra_glm::{Vec3, Mat4, Mat3, look_at, Vec4, Vec2};
-use minifb::{Key, Window, WindowOptions, MouseButton};
+use minifb::{Key, Window, WindowOptions, MouseButton, MouseMode};
 use std::{f32::consts::PI};
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType, CellularDistanceFunction, CellularReturnType};
 use image::{open, DynamicImage, GenericImageView};
@@ -297,7 +297,7 @@ fn main() {
             option = 7;
         }
 
-        handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera);
+        handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera, &mut last_mouse_pos);
         framebuffer.clear();
         skybox.render(&mut framebuffer, &uniform, camera.eye);
         time += 1.0;
@@ -328,11 +328,30 @@ fn main() {
 
 }
 
-fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32, camera: &mut Camera) {
+fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32, camera: &mut Camera, last_mouse_pos: &mut (f32, f32)) {
     let movement_speed = 0.5;
     let rotation_speed = PI / 50.0;
     let zoom_speed = 0.3;
     let mut movement = Vec3::new(0.0, 0.0, 0.0);
+    if let Some((x, y)) = window.get_mouse_pos(MouseMode::Discard) {
+        // Calculate mouse movement delta
+        let dx = x as f32 - last_mouse_pos.0;
+        let dy = y as f32 - last_mouse_pos.1;
+        
+        // Update camera rotation based on mouse movement
+        if dx != 0.0 || dy != 0.0 {
+            camera.orbit(-dx * 0.001, -dy * 0.001);
+        }
+
+        // Update last mouse position
+        *last_mouse_pos = (x as f32, y as f32);
+    }
+
+    if let Some((_scroll_x, scroll_y)) = window.get_scroll_wheel() {
+        if scroll_y != 0.0 {
+            camera.zoom(scroll_y * 0.003);
+        }
+    }
 
     if window.is_key_down(Key::Left) {
 
