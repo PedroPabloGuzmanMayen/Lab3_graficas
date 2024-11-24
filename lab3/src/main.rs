@@ -1,5 +1,5 @@
-use nalgebra_glm::{Vec3, Mat4, Mat3, look_at, Vec4};
-use minifb::{Key, Window, WindowOptions};
+use nalgebra_glm::{Vec3, Mat4, Mat3, look_at, Vec4, Vec2};
+use minifb::{Key, Window, WindowOptions, MouseButton};
 use std::{f32::consts::PI};
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType, CellularDistanceFunction, CellularReturnType};
 use image::{open, DynamicImage, GenericImageView};
@@ -178,6 +178,8 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
 }
 
 
+
+
 fn main() {
     let window_width = 1000;
     let window_height = 1000;
@@ -190,6 +192,9 @@ fn main() {
     music.play();
 
     let mut angle:f32 = 0.0;
+    let mut last_mouse_pos = (0.0, 0.0);
+    let mut mouse_sensitivity = 0.005; 
+    let mut zoom_sensitivity = 0.1;
 
 
     let mut time:f32 = 0.0;
@@ -198,21 +203,9 @@ fn main() {
 
     let obj1 = Obj::load("assets/sphere.obj").expect("Failed to load obj");
     let obj2 = Obj::load("assets/sphere.obj").expect("Failed to load obj");
-    /*
-        pub model: Obj,
-    pub fragment_shader: fn(fragment: &Fragment, uniforms: &Uniforms) -> Color,
-    pub traslation: Vec3,
-    pub rotation: Vec3,
-    pub scale: f32,
-    pub traslation_speed: f32,
-    pub rotation_speed: f32,
-    pub noise: FastNoiseLite
-     */
-
-   
 
     let mut camera = Camera::new(
-        Vec3::new(0.0, 0.0, 10.0), 
+        Vec3::new(0.0, 0.0, 60.0), 
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         false,
@@ -251,15 +244,19 @@ fn main() {
     let mut rotation = Vec3::new(0.0, 0.0, 0.0);
     let mut scale = 1.0f32;
     let mut celestial_bodies = vec![
-        CelestialBody::new("assets/sphere.obj", Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 0.0, 2.0, 0.0, Vec3::new(0.0,0.0,0.0), 1.0, 0.0), 
+        CelestialBody::new("assets/sphere.obj", Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 0.0, 4.0, 0.0, Vec3::new(0.0,0.0,0.0), 1.0, 0.0), 
         CelestialBody::new("assets/sphere.obj", Vec3::new(4.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 4.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 2.0, 0.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(8.0, 0.0, 4.0), Vec3::new(0.0, 0.0, 0.0), 8.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 3.0, PI/2.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(12.0, 0.0, 6.0), Vec3::new(0.0, 0.0, 0.0), 12.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 4.0, (3.0*PI)/2.0)
+        CelestialBody::new("assets/sphere.obj", Vec3::new(8.0, 0.0, 4.0), Vec3::new(0.0, 0.0, 0.0), 8.0, 2.0, 0.01, Vec3::new(0.0,0.0,0.0), 3.0, PI/2.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(12.0, 0.0, 6.0), Vec3::new(0.0, 0.0, 0.0), 12.0, 2.0, 0.01, Vec3::new(0.0,0.0,0.0), 4.0, (3.0*PI)/2.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(16.0, 0.0, 8.0), Vec3::new(0.0, 0.0, 0.0), 16.0, 3.0, 0.01, Vec3::new(0.0,0.0,0.0), 5.0, PI * 1.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(20.0, 0.0, 10.0), Vec3::new(0.0, 0.0, 0.0), 20.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 6.0, PI/3.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(24.0, 0.0, 12.0), Vec3::new(0.0, 0.0, 0.0), 14.0, 3.0, 0.01, Vec3::new(0.0,0.0,0.0), 7.0, PI/5.0)
 
         
     ];
 
     while window.is_open() {
+        
         if window.is_key_down(Key::Escape) {
             println!("Escape key pressed, exiting...");
             break;
@@ -304,15 +301,6 @@ fn main() {
         framebuffer.clear();
         skybox.render(&mut framebuffer, &uniform, camera.eye);
         time += 1.0;
-        //angle += PI/350.0;
-        //let (x,y) = traslaton_movement(angle, 1.0);
-        //translation.x = x;
-        //translation.y = y;
-        //rotation.y += 0.01;
-        //Iniciar aqui
-        //uniform.model_matrix = create_model_matrix(translation, scale, rotation);
-        //uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
-        //uniform.time = time;
         for body in celestial_bodies.iter_mut() {
             body.initial_angle += ROTATION_SPEED;
             let (x, y) = traslaton_movement(body.initial_angle, body.orbit_radius);
@@ -327,6 +315,7 @@ fn main() {
             uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
             uniform.time = time + 1.0;
             uniform.noise = create_noise(body.shader_option as usize);
+            let orbit_center = Vec2::new(framebuffer.width as f32 / 2.0, framebuffer.height as f32 / 2.0); // Adjust center as needed
 
             render(&mut framebuffer, &uniform, &body.vertices, body.shader_option as usize);
         }
@@ -364,7 +353,6 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
     if window.is_key_down(Key::Up) {
 
         camera.zoom(zoom_speed);
-        println!("Presse up");
     }
     if window.is_key_down(Key::Down) {
 
@@ -387,6 +375,7 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
         movement.y -= movement_speed;
     }
 
+    
     if movement.magnitude() != 0.0 {
         camera.move_center(movement);
         println!("Camera center {}", camera.center);
