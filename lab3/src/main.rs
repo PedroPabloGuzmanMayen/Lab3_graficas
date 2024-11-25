@@ -166,7 +166,6 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
 
   // Render
-  let mut drawn_fragments = 0;
   for fragment in fragments {
       let x = fragment.position.x as usize;
       let y = fragment.position.y as usize;
@@ -176,7 +175,6 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
         let shaded_color = fragment_shader(&fragment, uniforms, option as f32);
           framebuffer.set_current_color(shaded_color);
           framebuffer.point(x, y, fragment.depth);
-          drawn_fragments += 1;
       }
   }
 
@@ -205,6 +203,7 @@ fn render_bodies_parallel(
             let planet_position = Vec3::new(body.translation.x, body.translation.y, body.translation.z);
             
             // Lock uniform just long enough to check visibility
+            /* 
             let is_visible = {
                 let uniform_guard = uniform.lock().unwrap();
                 is_planet_visible(&planet_position, body.scale, &uniform_guard)
@@ -213,7 +212,7 @@ fn render_bodies_parallel(
             if !is_visible {
                 return None;
             }
-
+            */
             // Create a local framebuffer for this planet
             let mut local_framebuffer = FrameBuffer::new(framebuffer.width, framebuffer.height);
             
@@ -329,7 +328,7 @@ fn main() {
 
 
         if window.is_key_down(Key::Enter){
-            camera.eye = Vec3::new(5.8, 45.0, 0.0);
+            camera.eye = Vec3::new(5.8, 100.0, 0.0);
             camera.center = Vec3::new(0.0, 0.0, 0.0);
             camera.up = Vec3::new(0.0, 1.0, 0.0);
         }
