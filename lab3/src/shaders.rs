@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec3, Vec4};
+use nalgebra_glm::{Vec3, Vec4, mat4_to_mat3, Mat3};
 use crate::vertex::Vertex;
 use crate::uniforms::Uniforms;
 use crate::fragment::Fragment;
@@ -11,7 +11,7 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
         vertex.position.z,
         1.0
     );
-    let transformed = uniforms.viewport_matrix * uniforms.projection_matrix * uniforms.view_matrix * uniforms.model_matrix * position;
+    let transformed = uniforms.projection_matrix * uniforms.view_matrix * uniforms.model_matrix * position;
 
     let w = transformed.w;
     if w == 0.0 {
@@ -25,18 +25,29 @@ pub fn vertex_shader(vertex: &Vertex, uniforms: &Uniforms) -> Vertex {
         };
     }
 
-    let transformed_position = Vec3::new(
-        transformed.x/w,
+    let w = transformed.w;  
+    let ndc_position = Vec4::new(
+        transformed.x / w,
         transformed.y / w,
-        transformed.z /w
+        transformed.z / w,
+        1.0
     );
+
+  // apply viewport matrix
+    let screen_position = uniforms.viewport_matrix * ndc_position;
+
+  // Transform normal
+    let model_mat3 = mat4_to_mat3(&uniforms.model_matrix); 
+    let normal_matrix = model_mat3.transpose().try_inverse().unwrap_or(Mat3::identity());
+
+    let transformed_normal = normal_matrix * vertex.normal;
 
     Vertex {
         position: vertex.position,
         normal: vertex.normal,
         tex_coords: vertex.tex_coords,
         color: vertex.color,
-        transformed_position,
+        transformed_position: Vec3::new(screen_position.x, screen_position.y, screen_position.z),
         transformed_normal: vertex.normal
     }
 }

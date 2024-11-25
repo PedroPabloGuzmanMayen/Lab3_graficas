@@ -1,41 +1,62 @@
-use nalgebra_glm::{Vec3, Mat4, Vec4};
+use nalgebra_glm::{Vec3, Vec4, Mat4};
+use crate::uniforms::Uniforms;
 
+// Define frustum planes
 pub struct Frustum {
-    planes: [Vec4; 6], // 6 planes: left, right, top, bottom, near, far
+    planes: [Vec4; 6], // Left, Right, Top, Bottom, Near, Far
 }
 
 impl Frustum {
-    pub fn new(view_matrix: &Mat4, projection_matrix: &Mat4) -> Self {
-        let vp = projection_matrix * view_matrix;
-        let planes = [
-            (vp.column(3) + vp.column(0)).normalize(), // Left
-            (vp.column(3) - vp.column(0)).normalize(), // Right
-            (vp.column(3) + vp.column(1)).normalize(), // Bottom
-            (vp.column(3) - vp.column(1)).normalize(), // Top
-            (vp.column(3) + vp.column(2)).normalize(), // Near
-            (vp.column(3) - vp.column(2)).normalize(), // Far
-        ];
+    pub fn new(projection_view: &Mat4) -> Self {
+        let mut planes = [Vec4::new(0.0, 0.0, 0.0, 0.0); 6];
+        
+        // Extract planes from projection-view matrix
+        // Left plane
+        planes[0] = projection_view.column(3) + projection_view.column(0);
+        // Right plane
+        planes[1] = projection_view.column(3) - projection_view.column(0);
+        // Bottom plane
+        planes[2] = projection_view.column(3) + projection_view.column(1);
+        // Top plane
+        planes[3] = projection_view.column(3) - projection_view.column(1);
+        // Near plane
+        planes[4] = projection_view.column(3) + projection_view.column(2);
+        // Far plane
+        planes[5] = projection_view.column(3) - projection_view.column(2);
+
+        // Normalize planes
+        for plane in planes.iter_mut() {
+            let normal = Vec3::new(plane.x, plane.y, plane.z);
+            let length = normal.magnitude();
+            *plane /= length;
+        }
 
         Frustum { planes }
     }
 
-    pub fn is_point_inside(&self, point: &Vec3) -> bool {
+    pub fn is_sphere_visible(&self, center: &Vec3, radius: f32) -> bool {
+        // Check if sphere is on positive side of all planes
         for plane in &self.planes {
-            let distance = plane.x * point.x + plane.y * point.y + plane.z * point.z + plane.w;
-            if distance < 0.0 {
-                return false;
-            }
-        }
-        true
-    }
-
-    pub fn is_sphere_inside(&self, center: &Vec3, radius: f32) -> bool {
-        for plane in &self.planes {
-            let distance = plane.x * center.x + plane.y * center.y + plane.z * center.z + plane.w;
+            let normal = Vec3::new(plane.x, plane.y, plane.z);
+            let distance = normal.dot(center) + plane.w;
+            
             if distance < -radius {
-                return false;
+                return false; // Sphere is completely outside frustum
             }
         }
         true
     }
+}
+
+// Add this function to check planet visibility
+pub fn is_planet_visible(planet_position: &Vec3, planet_scale: f32, uniforms: &Uniforms) -> bool {
+    // Create view-projection matrix
+    let vp_matrix = uniforms.projection_matrix * uniforms.view_matrix;
+    
+    // Create frustum from view-projection matrix
+    let frustum = Frustum::new(&vp_matrix);
+    
+    // Check if planet's bounding sphere is visible
+    // Use planet's scale as radius (multiply by a factor if needed for better bounds)
+    frustum.is_sphere_visible(planet_position, planet_scale * 1.5)
 }

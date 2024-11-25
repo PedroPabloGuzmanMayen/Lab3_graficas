@@ -2,7 +2,7 @@ use nalgebra_glm::{Vec3, Vec4};
 use rand::prelude::*;
 use std::f32::consts::PI;
 use crate::{color::Color, FrameBuffer, Uniforms};
-
+//Skybox (10 puntos)
 pub struct Star {
     position: Vec3,
     brightness: f32,

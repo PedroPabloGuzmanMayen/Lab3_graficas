@@ -25,6 +25,26 @@ impl FrameBuffer {
         }
     }
 
+    pub fn blend_with(&mut self, other: &FrameBuffer) {
+        // Verify dimensions match
+        assert_eq!(self.width, other.width, "Cannot blend framebuffers of different widths");
+        assert_eq!(self.height, other.height, "Cannot blend framebuffers of different heights");
+
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let index = y * self.width + x;
+                
+                // If the other buffer's z-value is smaller (closer to camera) 
+                // and not background, use its color
+                if other.zbuffer[index] < self.zbuffer[index] && 
+                   other.buffer[index].to_hex() != other.background_color.to_hex() {
+                    self.buffer[index] = other.buffer[index];
+                    self.zbuffer[index] = other.zbuffer[index];
+                }
+            }
+        }
+    }
+
     pub fn clear_with_pattern(&mut self) {
         let mut noise = FastNoiseLite::new();
         noise.set_noise_type(Some(NoiseType::Cellular));

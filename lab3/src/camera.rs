@@ -52,7 +52,7 @@ impl Camera {
 
     }
 
-    //Camara zoom (5 puntos)
+    
     pub fn zoom(&mut self, mut delta_zoom: f32) {
         let direction = (self.center - self.eye).normalize();
         if direction == Vec3::new(0.0, 0.0, 0.0) {
@@ -62,14 +62,14 @@ impl Camera {
         // Calculate current distance from center
         let current_distance = (self.center - self.eye).magnitude();
         
-        // Set minimum and maximum zoom distances
-        const MIN_DISTANCE: f32 = 10.0;  // Adjust this to prevent going through planets
-        const MAX_DISTANCE: f32 = 100.0; // Adjust this to limit how far out you can zoom
+        // Límites de zoom, esto se hace para evitar atravesar planetas (10 puntos)
+        const MIN_DISTANCE: f32 = 10.0;  
+        const MAX_DISTANCE: f32 = 100.0; 
         
         // Calculate new potential distance
         let new_distance = current_distance - delta_zoom;
         
-        // Only apply zoom if it keeps us within bounds
+        
         if new_distance >= MIN_DISTANCE && new_distance <= MAX_DISTANCE {
             self.eye += direction * delta_zoom;
             self.has_changed = true;

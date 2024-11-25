@@ -13,8 +13,8 @@ pub fn edge_function(a: &Vec3, b: &Vec3, c:&Vec3) -> f32{
 pub fn calculate_bounding_box(v1: &Vec3, v2:&Vec3, v3:&Vec3)-> (i32, i32, i32, i32){
     let min_x = v1.x.min(v2.x).min(v3.x).floor() as i32;
     let min_y = v1.y.min(v2.y).min(v3.y).floor() as i32;
-    let max_x = v1.x.max(v2.x).max(v3.x).floor() as i32;
-    let max_y = v1.y.max(v2.y).max(v3.y).floor() as i32;
+    let max_x = v1.x.max(v2.x).max(v3.x).ceil() as i32;
+    let max_y = v1.y.max(v2.y).max(v3.y).ceil() as i32;
     (min_x, min_y, max_x, max_y)
 }
 
@@ -34,17 +34,18 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
     let color_c = Color::new(0,0,255);
     for y in min_y..max_y{
         for x in min_x..max_x{
-            let point = Vec3::new(x as f32, y as f32, 0.0);
+            let point = Vec3::new(x as f32 +0.5, y as f32+0.5, 0.0);
             
             let (u,v,w) = barycentric_coordinates(&a, &b, &c, &point, area);
-            let depth = a.z * u + b.z*v + c.z*w;
+            
             let base_color = Color::new(100, 100, 100);
             //let base_color = color_a * u+ color_b * v + color_c * w;
            
             if u >= 0.0 && u <= 1.0 && v >= 0.0 && v<= 1.0  && w >= 0.0 && w <= 1.0{
-                let normal = v1.normal * u + v2.normal * v + v3.normal * w;
+                let normal = v1.transformed_normal * u + v2.transformed_normal * v + v3.transformed_normal * w;
                 let normal = normal.normalize();
                 let intensity = dot(&normal, &light_dir);
+                let depth = a.z * u + b.z*v + c.z*w;
                 /* 
                 if intensity < 0.0{
                     continue;

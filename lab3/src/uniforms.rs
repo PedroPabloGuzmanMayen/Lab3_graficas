@@ -1,6 +1,7 @@
 use nalgebra_glm::{Vec3, Mat4, Mat3, look_at, perspective};
 use std::f32::consts::PI;
 use fastnoise_lite::{FastNoiseLite, NoiseType, FractalType};
+
 pub struct Uniforms {
     pub model_matrix:Mat4,
     pub view_matrix:Mat4,
@@ -64,7 +65,7 @@ pub fn create_projection_matrix(width: f32, height: f32) -> Mat4{
     let fov = 45.0 * PI / 180.0;
     let aspect_ratio = width/height;
     let near= 0.1;
-    let far = 10000.0;
+    let far = 1000.0;
 
     perspective(fov, aspect_ratio, near, far)
 

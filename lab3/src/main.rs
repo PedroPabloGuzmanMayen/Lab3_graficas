@@ -24,7 +24,7 @@ mod skybox;
 use music::AudioPlayer;
 use Celestial_body::CelestialBody;
 use framebuffer::FrameBuffer;
-use frustrum::Frustum;
+use frustrum::{Frustum, is_planet_visible};
 use vertex::Vertex;
 use shaders::{vertex_shader, fragment_shader, sun_shader, combined_shader};
 use uniforms::{Uniforms, create_projection_matrix, create_viewport_matrix, create_model_matrix, create_view_matrix};
@@ -33,6 +33,9 @@ use color::Color;
 use obj::Obj;
 use camera::Camera;
 use skybox::Skybox;
+use rayon::prelude::*;
+use std::sync::Mutex;
+use std::sync::Arc;
 
 const ROTATION_SPEED: f32 = PI/450.0;
 
@@ -43,71 +46,7 @@ pub fn traslaton_movement(angle: f32, radius: f32) -> (f32, f32){
     (radius * angle.cos(), radius * angle.sin())
 }
 
-fn draw_orbit(framebuffer: &mut FrameBuffer, uniform: &Uniforms, orbit_radius: f32) {
-    let segments = 100; // Number of line segments to make the circle
-    let mut points = Vec::new();
-    
-    // Generate points around the circle
-    for i in 0..=segments {
-        let angle = (i as f32 * 2.0 * PI) / segments as f32;
-        let x = orbit_radius * angle.cos();
-        let y = orbit_radius * angle.sin();
-        
-        // Create a vertex for each point
-        let mut vertex = Vertex::new(Vec3::new(x, y, 0.0), Vec3::new(0.0, 0.0, 1.0), Vec2::new(0.0, 0.0));
-        vertex.color = Color::new(255,255,255);
-        points.push(vertex);
-    }
-    
-    // Draw lines between points to form the orbit
-    for i in 0..segments {
-        let v1 = &points[i];
-        let v2 = &points[i + 1];
-        
-        // Transform vertices
-        let transformed_v1 = vertex_shader(v1, uniform);
-        let transformed_v2 = vertex_shader(v2, uniform);
-        
-        // Basic line drawing between points
-        draw_line(framebuffer, 
-                 transformed_v1.position.x as i32, 
-                 transformed_v1.position.y as i32,
-                 transformed_v2.position.x as i32, 
-                 transformed_v2.position.y as i32,
-                 Color::new(255,255,255)); // Orbit color (subtle gray)
-    }
-}
 
-// Add this helper function to draw lines
-fn draw_line(framebuffer: &mut FrameBuffer, x0: i32, y0: i32, x1: i32, y1: i32, color: Color) {
-    let dx = (x1 - x0).abs();
-    let dy = -(y1 - y0).abs();
-    let sx = if x0 < x1 { 1 } else { -1 };
-    let sy = if y0 < y1 { 1 } else { -1 };
-    let mut err = dx + dy;
-    
-    let mut x = x0;
-    let mut y = y0;
-    
-    loop {
-        if x >= 0 && x < framebuffer.width as i32 && y >= 0 && y < framebuffer.height as i32 {
-            framebuffer.set_current_color(color);
-            framebuffer.point(x as usize, y as usize, 1.0); // Use 1.0 for depth to draw orbits behind planets
-        }
-        
-        if x == x1 && y == y1 { break; }
-        
-        let e2 = 2 * err;
-        if e2 >= dy {
-            err += dy;
-            x += sx;
-        }
-        if e2 <= dx {
-            err += dx;
-            y += sy;
-        }
-    }
-}
 
 
 fn create_noise(option: usize) -> FastNoiseLite{
@@ -243,6 +182,65 @@ fn render(framebuffer: &mut FrameBuffer, uniforms: &Uniforms, vertex_array: &[Ve
 
 }
 
+fn render_bodies_parallel(
+    celestial_bodies: &mut Vec<CelestialBody>,
+    framebuffer: &mut FrameBuffer,
+    uniform: &Arc<Mutex<Uniforms>>,
+    camera: &Camera,
+    time: f32
+) {
+    // First update all positions in parallel - this doesn't need the uniform
+    celestial_bodies.par_iter_mut().for_each(|body| {
+        body.initial_angle += ROTATION_SPEED;
+        let (x, y) = traslaton_movement(body.initial_angle, body.orbit_radius);
+        body.translation.x = x;
+        body.translation.z = y;
+        body.rotation.z += body.orbit_speed;
+    });
+
+    // Create thread-local framebuffers
+    let body_renders: Vec<Option<FrameBuffer>> = celestial_bodies
+        .par_iter()
+        .map(|body| {
+            let planet_position = Vec3::new(body.translation.x, body.translation.y, body.translation.z);
+            
+            // Lock uniform just long enough to check visibility
+            let is_visible = {
+                let uniform_guard = uniform.lock().unwrap();
+                is_planet_visible(&planet_position, body.scale, &uniform_guard)
+            };
+
+            if !is_visible {
+                return None;
+            }
+
+            // Create a local framebuffer for this planet
+            let mut local_framebuffer = FrameBuffer::new(framebuffer.width, framebuffer.height);
+            
+            // Lock uniform for rendering
+            {
+                let mut uniform_guard = uniform.lock().unwrap();
+                uniform_guard.model_matrix = create_model_matrix(
+                    body.translation,
+                    body.scale,
+                    body.rotation
+                );
+                uniform_guard.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
+                uniform_guard.time = time + 1.0;
+                uniform_guard.noise = create_noise(body.shader_option as usize);
+
+                render(&mut local_framebuffer, &uniform_guard, &body.vertices, body.shader_option as usize);
+            }
+            
+            Some(local_framebuffer)
+        })
+        .collect();
+
+    // Merge all framebuffers
+    for body_framebuffer in body_renders.into_iter().flatten() {
+        framebuffer.blend_with(&body_framebuffer);
+    }
+}
 
 
 
@@ -271,22 +269,23 @@ fn main() {
     let obj2 = Obj::load("assets/sphere.obj").expect("Failed to load obj");
 
     let mut camera = Camera::new(
-        Vec3::new(0.0, 0.0, 60.0), 
+        Vec3::new(5.0, 55.0, 0.0), 
         Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         false,
     );
     let projection_matrix = create_projection_matrix(window_width as f32, window_height as f32);
     let viewport_matrix = create_viewport_matrix(framebuffer_width as f32, framebuffer_height as f32);
+    let frustrum = Frustum::new(&projection_matrix);
 
-    let mut uniform = Uniforms::new(
+    let uniform = Arc::new(Mutex::new(Uniforms::new(
         Mat4::identity(),
         Mat4::identity(),
         projection_matrix,
         viewport_matrix,
-        time, 
+        time,
         noise
-    );
+    )));
 
     let mut framebuffer = FrameBuffer::new(framebuffer_width, framebuffer_height);
     let mut window = Window::new(
@@ -311,12 +310,12 @@ fn main() {
     let mut scale = 1.0f32;
     let mut celestial_bodies = vec![
         CelestialBody::new("assets/sphere.obj", Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 0.0, 4.0, 0.0, Vec3::new(0.0,0.0,0.0), 1.0, 0.0), 
-        CelestialBody::new("assets/sphere.obj", Vec3::new(4.0, 0.0, 2.0), Vec3::new(0.0, 0.0, 0.0), 4.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 2.0, 0.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(8.0, 0.0, 4.0), Vec3::new(0.0, 0.0, 0.0), 8.0, 2.0, 0.01, Vec3::new(0.0,0.0,0.0), 3.0, PI/2.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(12.0, 0.0, 6.0), Vec3::new(0.0, 0.0, 0.0), 12.0, 2.0, 0.01, Vec3::new(0.0,0.0,0.0), 4.0, (3.0*PI)/2.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(16.0, 0.0, 8.0), Vec3::new(0.0, 0.0, 0.0), 16.0, 3.0, 0.01, Vec3::new(0.0,0.0,0.0), 5.0, PI * 1.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(20.0, 0.0, 10.0), Vec3::new(0.0, 0.0, 0.0), 20.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 6.0, PI/3.0),
-        CelestialBody::new("assets/sphere.obj", Vec3::new(24.0, 0.0, 12.0), Vec3::new(0.0, 0.0, 0.0), 14.0, 3.0, 0.01, Vec3::new(0.0,0.0,0.0), 7.0, PI/5.0)
+        CelestialBody::new("assets/sphere.obj", Vec3::new(4.0, 5.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 4.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 2.0, 0.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(8.0, 10.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 12.0, 2.0, 0.01, Vec3::new(0.0,0.0,0.0), 3.0, PI/2.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(12.0, 15.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 24.0, 2.0, 0.01, Vec3::new(0.0,0.0,0.0), 4.0, (3.0*PI)/2.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(16.0, 20.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 30.0, 3.0, 0.01, Vec3::new(0.0,0.0,0.0), 5.0, PI * 1.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(20.0, 25.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 36.0, 1.0, 0.01, Vec3::new(0.0,0.0,0.0), 6.0, PI/3.0),
+        CelestialBody::new("assets/sphere.obj", Vec3::new(24.0, 30.0, 0.0), Vec3::new(0.0, 0.0, 0.0), 45.0, 3.0, 0.01, Vec3::new(0.0,0.0,0.0), 7.0, PI/5.0)
 
         
     ];
@@ -327,71 +326,31 @@ fn main() {
             println!("Escape key pressed, exiting...");
             break;
         }
-        if window.is_key_down(Key::Key1) {
-            noise = create_noise(1);
-            uniform.noise = noise;
-            option = 1;
-        }
-        if window.is_key_down(Key::Key2){
-            noise = create_noise(2);
-            uniform.noise = noise;
-            option = 2;
-        }
-        if window.is_key_down(Key::Key3){
-            noise = create_noise(3);
-            uniform.noise = noise;
-            option = 3;
-        }
-        if window.is_key_down(Key::Key4){
-            noise = create_noise(4);
-            uniform.noise = noise;
-            option = 4;
-        }
-        if window.is_key_down(Key::Key5){
-            noise = create_noise(5);
-            uniform.noise = noise;
-            option = 5;
-        }
-        if window.is_key_down(Key::Key6){
-            noise = create_noise(6);
-            uniform.noise = noise;
-            option = 6;
-        }
-        if window.is_key_down(Key::Key7){
-            noise = create_noise(7);
-            uniform.noise = noise;
-            option = 7;
-        }
+
 
         if window.is_key_down(Key::Enter){
-            camera.eye = Vec3::new(0.0, 0.0, 75.0)
+            camera.eye = Vec3::new(5.8, 45.0, 0.0);
+            camera.center = Vec3::new(0.0, 0.0, 0.0);
+            camera.up = Vec3::new(0.0, 1.0, 0.0);
         }
 
         handle_input(&window, &mut translation, &mut rotation, &mut scale, &mut camera, &mut last_mouse_pos);
         framebuffer.clear();
-        skybox.render(&mut framebuffer, &uniform, camera.eye);
+        {
+            let uniform_guard = uniform.lock().unwrap();
+            skybox.render(&mut framebuffer, &uniform_guard, camera.eye);
+        }
+       
         time += 1.0;
-        for body in &celestial_bodies {
-            draw_orbit(&mut framebuffer, &uniform, body.orbit_radius);
-        }
-        for body in celestial_bodies.iter_mut() {
-            body.initial_angle += ROTATION_SPEED;
-            let (x, y) = traslaton_movement(body.initial_angle, body.orbit_radius);
-            body.translation.x = x;
-            body.translation.y = y;
-            body.rotation.y += body.orbit_speed;
-            uniform.model_matrix = create_model_matrix(
-                body.translation,
-                body.scale,
-                body.rotation
-            );
-            uniform.view_matrix = create_view_matrix(&camera.eye, &camera.center, &camera.up);
-            uniform.time = time + 1.0;
-            uniform.noise = create_noise(body.shader_option as usize);
-            let orbit_center = Vec2::new(framebuffer.width as f32 / 2.0, framebuffer.height as f32 / 2.0); // Adjust center as needed
 
-            render(&mut framebuffer, &uniform, &body.vertices, body.shader_option as usize);
-        }
+        // Render bodies in parallel
+        render_bodies_parallel(
+            &mut celestial_bodies,
+            &mut framebuffer,
+            &uniform,
+            &camera,
+            time
+        );
 
 
         window
@@ -402,24 +361,25 @@ fn main() {
 }
 
 fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32, camera: &mut Camera, last_mouse_pos: &mut (f32, f32)) {
-    let movement_speed = 0.5;
+    let movement_speed = 0.3;
     let rotation_speed = PI / 50.0;
     let zoom_speed = 0.3;
     let mut movement = Vec3::new(0.0, 0.0, 0.0);
+    //Movimiento de la cámara con mouse 10 puntos)
     if let Some((x, y)) = window.get_mouse_pos(MouseMode::Discard) {
-        // Calculate mouse movement delta
+        
         let dx = x as f32 - last_mouse_pos.0;
         let dy = y as f32 - last_mouse_pos.1;
         
-        // Update camera rotation based on mouse movement
+        
         if dx != 0.0 || dy != 0.0 {
             camera.orbit(-dx * 0.001, -dy * 0.001);
         }
 
-        // Update last mouse position
+       
         *last_mouse_pos = (x as f32, y as f32);
     }
-
+    //Zoom con scroll (10 puntos)
     if let Some((_scroll_x, scroll_y)) = window.get_scroll_wheel() {
         if scroll_y != 0.0 {
             camera.zoom(scroll_y * 0.003);
@@ -443,7 +403,7 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
         camera.orbit(0.0, rotation_speed);
     }
     if window.is_key_down(Key::Up) {
-
+        
         camera.zoom(zoom_speed);
     }
     if window.is_key_down(Key::Down) {
