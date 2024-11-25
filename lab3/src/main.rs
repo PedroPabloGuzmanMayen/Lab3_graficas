@@ -323,7 +323,7 @@ fn main() {
             break;
         }
 
-
+        //Tecla para hcer bird eye (10 puntos)
         if window.is_key_down(Key::Enter){
             camera.eye = Vec3::new(5.8, 100.0, 0.0);
             camera.center = Vec3::new(0.0, 0.0, 0.0);
@@ -356,6 +356,7 @@ fn main() {
 
 }
 
+//Camara 3D (20 puntos)
 fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32, camera: &mut Camera, last_mouse_pos: &mut (f32, f32)) {
     let movement_speed = 0.3;
     let rotation_speed = PI / 50.0;
@@ -381,7 +382,7 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
             camera.zoom(scroll_y * 0.003);
         }
     }
-
+    
     if window.is_key_down(Key::Left) {
 
         camera.orbit(rotation_speed, 0.0);
