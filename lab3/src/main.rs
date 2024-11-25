@@ -46,9 +46,6 @@ pub fn traslaton_movement(angle: f32, radius: f32) -> (f32, f32){
     (radius * angle.cos(), radius * angle.sin())
 }
 
-
-
-
 fn create_noise(option: usize) -> FastNoiseLite{
     let mut noise = FastNoiseLite::new();
     //Estrella del sistema
@@ -193,7 +190,7 @@ fn render_bodies_parallel(
         let (x, y) = traslaton_movement(body.initial_angle, body.orbit_radius);
         body.translation.x = x;
         body.translation.z = y;
-        body.rotation.z += body.orbit_speed;
+        body.rotation.y += body.orbit_speed;
     });
 
     // Create thread-local framebuffers
